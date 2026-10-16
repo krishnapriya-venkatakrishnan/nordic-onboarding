@@ -110,6 +110,15 @@ button {
 .btn--ghost:hover:not(:disabled) {
   background: var(--paper);
 }
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 0.4rem;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .btn--eid {
   background: var(--ink);
   color: var(--card);
@@ -229,10 +238,149 @@ button {
   color: var(--err);
 }
 
+/* Product choices */
+.choices {
+  display: grid;
+  gap: 0.75rem;
+}
+.choice {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+}
+.choice:hover {
+  border-color: var(--ink-3);
+}
+.choice--on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.choice__name {
+  font-weight: 600;
+}
+.choice__text {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tag--quiet {
+  background: var(--paper);
+  color: var(--ink-3);
+}
+
+/* Confirmations */
+.checks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.check {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.check input {
+  margin-top: 0.25rem;
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.req,
+.scoped {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+}
+.req {
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+}
+.scoped {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Review and done */
+.summary {
+  display: grid;
+  gap: 0;
+  margin: 0 0 1.25rem;
+}
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.summary dt {
+  color: var(--ink-3);
+}
+.summary dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 500;
+}
+.done {
+  text-align: center;
+}
+.done .summary {
+  text-align: left;
+  max-width: 22rem;
+  margin: 1rem auto 1.5rem;
+}
+.done__mark {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  display: grid;
+  place-items: center;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
 /* Notices */
 .notice {
   border-radius: 10px;
   padding: 0.85rem 1rem;
+}
+.notice ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+.card .notice--error {
+  margin-top: 1rem;
 }
 .notice--ok {
   background: var(--ok-soft);

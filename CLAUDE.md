@@ -64,7 +64,7 @@ adapt Spring package names, starters and test imports rather than copying them.
 2. Domain: Market interface, Personnummer and CPR rules, Sweden and Denmark
    markets, contract test, registry, OnboardingService, REST API.
 3. Frontend: Angular app, API client, market switcher and config panel,
-   config-driven flow, component tests, styling (mobile, dark mode, a11y).
+   config-driven flow, component tests, styling (mobile, a11y; light theme only).
 4. Ship: Dockerfile (Angular bundled into the Spring jar), Cloud Run deploy on
    green main, no-traffic revision + smoke test + traffic shift.
 5. Observability: structured JSON logs (market, step, outcome; IDs masked),

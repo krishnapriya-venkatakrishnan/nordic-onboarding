@@ -1,0 +1,145 @@
+@if (result(); as done) {
+  <section class="card done" aria-live="polite">
+    <div class="done__mark" aria-hidden="true">✓</div>
+    <h2>Demo application complete</h2>
+    <p class="lead">
+      In a real service, your
+      <span [attr.lang]="config().locale">{{ chosenProduct()?.name }}</span> in
+      {{ config().displayName }} would now be opened and hold {{ done.currency }}.
+    </p>
+    <p class="hint">No account was opened and nothing was saved.</p>
+    <dl class="summary">
+      <div>
+        <dt>Demo reference</dt>
+        <dd class="mono">{{ done.applicationId }}</dd>
+      </div>
+      <div>
+        <dt>Market</dt>
+        <dd>{{ config().displayName }}</dd>
+      </div>
+    </dl>
+    <button type="button" class="btn btn--ghost" (click)="startOver()">
+      Start a new application
+    </button>
+  </section>
+} @else {
+  <ol class="rail" aria-label="Progress">
+    @for (s of config().steps; track s; let i = $index) {
+      <li [class.rail--done]="i < stepIndex()" [class.rail--now]="i === stepIndex()">
+        <button
+          type="button"
+          (click)="goTo(s)"
+          [disabled]="i >= stepIndex()"
+          [attr.aria-current]="i === stepIndex() ? 'step' : null"
+        >
+          <span class="rail__n" aria-hidden="true">{{ i < stepIndex() ? '✓' : i + 1 }}</span>
+          <span class="rail__t">
+            {{ titles[s] }}
+            @if (i < stepIndex()) {
+              <span class="sr-only">, done</span>
+            }
+          </span>
+        </button>
+      </li>
+    }
+  </ol>
+  <!-- Phone-only summary of the rail; screen readers already get it from the list above. -->
+  <p class="rail-count" aria-hidden="true">
+    {{ titles[step()] }} · {{ stepIndex() + 1 }}/{{ config().steps.length }}
+  </p>
+
+  <section class="card">
+    @switch (step()) {
+      @case ('IDENTITY') {
+        <app-identity-step
+          [provider]="config().identityProvider.displayName"
+          [verified]="sessionId() !== null"
+          [busy]="verifying()"
+          [failed]="verifyFailed()"
+          (verify)="verify()"
+        />
+      }
+      @case ('PERSONAL_DETAILS') {
+        <app-details-step [form]="details" [config]="config()" />
+      }
+      @case ('ACCOUNT_TYPE') {
+        <app-product-step
+          [config]="config()"
+          [selected]="productId()"
+          (select)="selectProduct($event)"
+        />
+      }
+      @case ('DISCLOSURES') {
+        <app-disclosures-step
+          [disclosures]="visibleDisclosures()"
+          [accepted]="accepted()"
+          (toggle)="toggle($event)"
+        />
+      }
+      @case ('REVIEW') {
+        <h2>Review and open</h2>
+        <p class="lead">Check the details before we open your account.</p>
+        <dl class="summary">
+          <div>
+            <dt>Verified with</dt>
+            <dd>{{ config().identityProvider.displayName }}</dd>
+          </div>
+          <div>
+            <dt>{{ config().nationalId.label }}</dt>
+            <dd class="mono">{{ details.controls.nationalId.value }}</dd>
+          </div>
+          <div>
+            <dt>Name</dt>
+            <dd>{{ details.controls.fullName.value }}</dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>{{ details.controls.email.value }}</dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd [attr.lang]="config().locale">{{ chosenProduct()?.name }}</dd>
+          </div>
+          <div>
+            <dt>Currency</dt>
+            <dd>{{ config().currency }}</dd>
+          </div>
+          <div>
+            <dt>Confirmations</dt>
+            <dd>{{ accepted().size }} accepted</dd>
+          </div>
+        </dl>
+        @if (serverErrors().length) {
+          <div class="notice notice--error" role="alert">
+            <strong>We couldn't open the account yet.</strong>
+            <ul>
+              @for (e of serverErrors(); track e.field) {
+                <li>
+                  {{ e.message }}
+                  @if (e.field !== 'form') {
+                    <button type="button" class="link" (click)="fixError(e.field)">
+                      Fix in {{ fieldLabel(e.field) }}
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      }
+    }
+
+    <div class="nav">
+      @if (stepIndex() > 0) {
+        <button type="button" class="btn btn--ghost" (click)="back()">Back</button>
+      }
+      <button type="button" class="btn btn--primary" (click)="next()" [disabled]="!canContinue()">
+        @if (step() === 'REVIEW') {
+          {{ submitting() ? 'Opening…' : 'Open account' }}
+        } @else {
+          Continue
+        }
+      </button>
+    </div>
+  </section>
+}

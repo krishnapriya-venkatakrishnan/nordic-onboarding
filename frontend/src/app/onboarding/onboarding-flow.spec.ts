@@ -302,4 +302,120 @@ describe('OnboardingFlow', () => {
       expect(button('Continue with BankID')).toBeTruthy();
     });
   });
+
+  /** The same component for every market: nothing in it knows Sweden or Denmark. */
+  describe('one flow for every market', () => {
+    const rail = (title: string) =>
+      [...el().querySelectorAll<HTMLButtonElement>('.rail button')].find((b) =>
+        b.textContent?.includes(title),
+      )!;
+    const currentStep = () => el().querySelector('[aria-current="step"]')?.textContent ?? '';
+
+    it("uses each market's own eID and ID number rules", () => {
+      show(SE);
+      expect(button('Continue with BankID')).toBeTruthy();
+
+      show(DK);
+      expect(button('Continue with MitID')).toBeTruthy();
+      expect(text()).not.toContain('BankID');
+
+      click(button('Continue with MitID'));
+      expect(api.startIdentitySession).toHaveBeenCalledWith('DK');
+      click(button('Continue'));
+      expect(text()).toContain('CPR number');
+      expect(input('nationalId').placeholder).toBe('DDMMYY-SSSS');
+    });
+
+    it('keeps Continue locked until each step is done, and the rail never skips ahead', async () => {
+      api.submit.mockReturnValue(new Subject()); // never answers, so "Opening…" stays
+      show(DK);
+      expect(rail('Your details').disabled).toBe(true);
+      expect(rail('Review').disabled).toBe(true);
+
+      expect(button('Continue').disabled).toBe(true);
+      click(button('Continue with MitID'));
+      expect(button('Continue').disabled).toBe(false);
+      click(button('Continue'));
+
+      expect(button('Continue').disabled).toBe(true);
+      type('nationalId', DK.nationalId.example);
+      type('fullName', 'Freja Jensen');
+      type('email', 'freja@example.com');
+      await pause();
+      expect(button('Continue').disabled).toBe(false);
+      click(button('Continue'));
+
+      expect(button('Continue').disabled).toBe(true);
+      click(choice('Depot'));
+      expect(button('Continue').disabled).toBe(false);
+      click(button('Continue'));
+
+      expect(button('Continue').disabled).toBe(true);
+      click(checkbox('Accept terms'));
+      expect(button('Continue').disabled).toBe(false);
+      click(button('Continue'));
+
+      expect(currentStep()).toContain('Review');
+      expect(rail('Verify identity').disabled).toBe(false); // going back is always allowed
+      click(button('Open account'));
+      expect(button('Opening…').disabled).toBe(true);
+      expect(api.submit).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts again from a clean first step when the market switches', async () => {
+      api.submit.mockReturnValue(
+        of(rejected({ field: 'fullName', message: 'Enter your full name.' })),
+      );
+      await toReview();
+      click(button('Open account'));
+      expect(text()).toContain('Enter your full name.');
+
+      show(SE);
+
+      expect(text()).not.toContain('Enter your full name.');
+      expect(currentStep()).toContain('Verify identity');
+      expect(button('Continue with BankID')).toBeTruthy();
+      expect(button('Continue').disabled).toBe(true);
+
+      click(button('Continue with BankID'));
+      click(button('Continue'));
+      expect(input('nationalId').value).toBe('');
+      expect(input('fullName').value).toBe('');
+      expect(input('email').value).toBe('');
+
+      type('nationalId', '19121212-1212');
+      type('fullName', 'Astrid Lund');
+      type('email', 'astrid@example.com');
+      await pause();
+      expect(api.checkNationalId).toHaveBeenLastCalledWith('SE', '19121212-1212');
+      click(button('Continue'));
+
+      expect(text()).toContain('Investeringssparkonto');
+      expect(text()).not.toContain('Aktiesparekonto');
+      expect(button('Continue').disabled).toBe(true);
+      click(choice('Investeringssparkonto'));
+      click(button('Continue'));
+      expect(checkbox('Accept terms').checked).toBe(false);
+
+      // Denmark's server error must not reappear on Sweden's review.
+      click(checkbox('Accept terms'));
+      click(button('Continue'));
+      expect(currentStep()).toContain('Review');
+      expect(text()).not.toContain('Enter your full name.');
+    });
+
+    it('leaves the done screen when the market switches', async () => {
+      api.submit.mockReturnValue(
+        of({ ...rejected(), accepted: true, applicationId: 'APP-1234ABCD', currency: 'DKK' }),
+      );
+      await toReview();
+      click(button('Open account'));
+      expect(text()).toContain('Demo application complete');
+
+      show(SE);
+
+      expect(text()).not.toContain('Demo application complete');
+      expect(button('Continue with BankID')).toBeTruthy();
+    });
+  });
 });

@@ -1,3 +1,94 @@
-<main>
-  <h1>Nordic Onboarding</h1>
+<header class="top">
+  <div class="brand">
+    <span class="brand__mark" aria-hidden="true"></span>
+    <span>Nordic Onboarding</span>
+    <span class="brand__tag">demo</span>
+  </div>
+  @if (markets().length) {
+    <div class="switch" role="group" aria-label="Market">
+      @for (m of markets(); track m.code) {
+        <button
+          type="button"
+          [attr.aria-pressed]="selected() === m.code"
+          [class.switch--on]="selected() === m.code"
+          (click)="choose(m.code)"
+        >
+          <span class="switch__code" aria-hidden="true">{{ m.code }}</span> {{ m.displayName }}
+        </button>
+      }
+    </div>
+  }
+</header>
+
+<main class="layout">
+  @if (loadError()) {
+    <section class="card notice notice--error" role="alert">
+      Couldn't reach the API. Is the backend running on port 8080?
+    </section>
+  } @else if (config(); as c) {
+    <div class="flow">
+      <p class="eyebrow">Open an account · {{ c.displayName }}</p>
+      <h1>Start investing in a few minutes</h1>
+    </div>
+
+    <aside class="profile" aria-labelledby="profile-title">
+      <h2 id="profile-title">What {{ c.displayName }} plugs in</h2>
+      <p class="profile__intro">
+        The onboarding flow is the same code for every market. Only this configuration changes.
+      </p>
+      <dl class="facts">
+        <div>
+          <dt>eID</dt>
+          <dd>{{ c.identityProvider.displayName }}</dd>
+        </div>
+        <div>
+          <dt>National ID</dt>
+          <dd>
+            {{ c.nationalId.label }} <code>{{ c.nationalId.placeholder }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Currency · locale</dt>
+          <dd>
+            {{ c.currency }} · <code>{{ c.locale }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Minimum age</dt>
+          <dd>{{ c.minimumAge }}</dd>
+        </div>
+        <div>
+          <dt>Products</dt>
+          <dd>
+            @for (p of c.products; track p.id) {
+              <span class="fact-line">
+                {{ p.name }}
+                @if (p.depositCap !== null) {
+                  <small>cap {{ money(p.depositCap, c) }}</small>
+                }
+              </span>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Confirmations</dt>
+          <dd>{{ requiredCount(c) }} required · {{ scopedCount(c) }} product-specific</dd>
+        </div>
+        <div>
+          <dt>Steps</dt>
+          <dd>
+            @for (s of c.steps; track s; let last = $last) {
+              {{ titles[s] }}
+              @if (!last) {
+                <span class="arrow" aria-hidden="true">→</span>
+              }
+            }
+          </dd>
+        </div>
+      </dl>
+      <p class="profile__foot">Illustrative rules for a portfolio demo, not legal or tax text.</p>
+    </aside>
+  } @else {
+    <p class="loading">Loading markets…</p>
+  }
 </main>

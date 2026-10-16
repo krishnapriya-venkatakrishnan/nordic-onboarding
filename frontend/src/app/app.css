@@ -1,0 +1,127 @@
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.1rem 1rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+.brand__mark {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--accent) 50%, var(--ink-3) 50%);
+}
+.brand__tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 0.35rem;
+}
+
+.switch {
+  display: inline-flex;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+}
+.switch button {
+  border: 0;
+  background: none;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.switch button.switch--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.switch__code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  opacity: 0.75;
+  margin-right: 0.2rem;
+}
+
+.layout {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 2rem;
+  align-items: start;
+}
+
+.profile {
+  position: sticky;
+  top: 1rem;
+  margin-top: 2.6rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+}
+.profile h2 {
+  font-size: 1.05rem;
+}
+.profile__intro {
+  color: var(--ink-2);
+  font-size: 0.86rem;
+  margin: 0.25rem 0 1rem;
+}
+.profile__foot {
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  margin: 1rem 0 0;
+}
+.facts {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.facts dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+.facts dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.9rem;
+}
+.facts code {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 0.3rem;
+}
+.fact-line {
+  display: block;
+}
+.fact-line small {
+  color: var(--accent);
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+.arrow {
+  color: var(--ink-3);
+  margin: 0 0.25rem;
+}
+.loading {
+  color: var(--ink-3);
+}

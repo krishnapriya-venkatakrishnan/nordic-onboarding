@@ -19,7 +19,7 @@ currency and locale (SEK sv-SE / DKK da-DK), minimum age, account products
 and confirmations, some scoped to one product.
 
 ## Stack
-- backend/: Java 21, Spring Boot 3, Maven
+- backend/: Java 25, Spring Boot 4.1, Maven
 - frontend/: Angular 21, standalone components, signals, reactive forms, Vitest
 - CI/CD: GitHub Actions; deploy to Google Cloud Run (europe-north1)
 - Observability: Cloud Logging, log-based metrics, Cloud Monitoring dashboards and alerts
@@ -40,9 +40,11 @@ and confirmations, some scoped to one product.
 8. Every new market must pass MarketContractTest.
 
 ## Reference implementation
-A working reference copy is at: ../nordic-onboarding-reference
+A working reference copy is at: nordic-onboarding/ (inside this folder, git-ignored)
 Port and adapt from it. Do not invent a different design. Its Spring layer has
 never been run, so expect small fixes there.
+It targets Java 21 and Spring Boot 3.5. We use Java 25 and Spring Boot 4.1, so
+adapt Spring package names, starters and test imports rather than copying them.
 
 ## How we work
 - The plan is a numbered list of steps. Each step = one commit. I will give you

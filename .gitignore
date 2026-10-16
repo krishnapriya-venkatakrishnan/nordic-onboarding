@@ -1,3 +1,6 @@
+# Reference copy we port from; not part of this repo
+/nordic-onboarding/
+
 # Backend (Maven)
 target/
 

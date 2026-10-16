@@ -9,5 +9,5 @@ onboarding flow; everything that differs between them lives in a market module.
 
 ## Layout
 
-- `backend/` – Java 21, Spring Boot 3 (coming in stage 1)
+- `backend/` – Java 25, Spring Boot 4
 - `frontend/` – Angular 21 (coming in stage 3)

@@ -2,6 +2,8 @@ package dev.krishnapriya.onboarding.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +18,7 @@ class MarketDefaultsTest {
         public String code() { return "XX"; }
         public String displayName() { return "Test market"; }
         public Locale locale() { return Locale.ROOT; }
+        public ZoneId zone() { return ZoneOffset.UTC; }
         public Currency currency() { return Currency.getInstance("EUR"); }
         public IdentityProvider identityProvider() { return new IdentityProvider("test-eid", "Test eID"); }
         public NationalIdRule nationalIdRule() { return null; }

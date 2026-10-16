@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
@@ -85,6 +85,19 @@ class OnboardingServiceTest {
         assertTrue(service.checkNationalId("DK", "161008-4000").isPresent(), "18 tomorrow");
     }
 
+    /** 22:30 UTC on 14 October is already 00:30 on the 15th in Copenhagen: the customer's 18th birthday. */
+    @Test
+    void birthdaysTurnOverAtTheMarketsMidnight() {
+        OnboardingService justAfterMidnightInDenmark = serviceAt(Instant.parse("2026-10-14T22:30:00Z"));
+        assertTrue(justAfterMidnightInDenmark.checkNationalId("DK", "151008-4000").isEmpty());
+    }
+
+    /** 23:30 UTC on 31 December is already the new year in Copenhagen, so the new cap applies. */
+    @Test
+    void depositCapYearTurnsOverAtTheMarketsMidnight() {
+        assertEquals(new BigDecimal("174200"), capOf(serviceAt(Instant.parse("2025-12-31T23:30:00Z"))));
+    }
+
     @Test
     void minimumAgeAppliesInEveryMarket() {
         assertEquals("You must be at least 18 to open an account yourself.",
@@ -117,8 +130,13 @@ class OnboardingServiceTest {
         return r.errors().stream().map(FieldError::field).toList();
     }
 
+    /** Midday UTC, so the date is the same in every market's time zone. */
     private static OnboardingService serviceOn(LocalDate date) {
-        Clock clock = Clock.fixed(date.atStartOfDay().toInstant(ZoneOffset.UTC), ZoneId.of("UTC"));
+        return serviceAt(date.atTime(12, 0).toInstant(ZoneOffset.UTC));
+    }
+
+    private static OnboardingService serviceAt(Instant instant) {
+        Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
         MarketRegistry registry = new MarketRegistry(List.of(new SwedenMarket(), new DenmarkMarket()), Set.of("SE", "DK"));
         return new OnboardingService(registry, clock);
     }

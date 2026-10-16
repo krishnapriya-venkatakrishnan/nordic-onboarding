@@ -6,6 +6,7 @@ import dev.krishnapriya.onboarding.domain.IdentityProvider;
 import dev.krishnapriya.onboarding.domain.Market;
 import dev.krishnapriya.onboarding.domain.NationalIdRule;
 
+import java.time.ZoneId;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -29,6 +30,11 @@ public final class SwedenMarket implements Market {
     @Override
     public Locale locale() {
         return Locale.forLanguageTag("sv-SE");
+    }
+
+    @Override
+    public ZoneId zone() {
+        return ZoneId.of("Europe/Stockholm");
     }
 
     @Override

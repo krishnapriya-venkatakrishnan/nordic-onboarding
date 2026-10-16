@@ -1,5 +1,6 @@
 package dev.krishnapriya.onboarding.domain;
 
+import java.time.ZoneId;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +20,9 @@ public interface Market {
     String displayName();
 
     Locale locale();
+
+    /** Where "today" is decided: birthdays and the deposit-cap year turn over at local midnight. */
+    ZoneId zone();
 
     Currency currency();
 

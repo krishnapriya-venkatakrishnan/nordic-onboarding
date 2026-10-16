@@ -34,7 +34,7 @@ public class OnboardingService {
 
     public MarketConfig config(String marketCode) {
         Market market = markets.get(marketCode);
-        int year = today().getYear();
+        int year = today(market).getYear();
         List<MarketConfig.Product> products = market.products().stream()
                 .map(p -> new MarketConfig.Product(p.id(), p.name(), p.summary(),
                         p.depositCapFor(year).orElse(null), p.onePerPerson()))
@@ -112,7 +112,7 @@ public class OnboardingService {
 
     private Optional<FieldError> checkNationalId(Market market, String raw) {
         // Read the clock once, so parsing and the age check can't see two different dates around midnight.
-        LocalDate today = today();
+        LocalDate today = today(market);
         NationalIdRule rule = market.nationalIdRule();
         NationalIdResult result = rule.parse(raw == null ? "" : raw, today);
         if (!result.valid()) {
@@ -126,8 +126,9 @@ public class OnboardingService {
         return Optional.empty();
     }
 
-    private LocalDate today() {
-        return LocalDate.now(clock);
+    /** The date where the customer is, not where the server runs (Cloud Run is on UTC). */
+    private LocalDate today(Market market) {
+        return LocalDate.now(clock.withZone(market.zone()));
     }
 
     private static boolean isBlank(String s) {

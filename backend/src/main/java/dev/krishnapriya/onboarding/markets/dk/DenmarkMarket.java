@@ -7,6 +7,7 @@ import dev.krishnapriya.onboarding.domain.Market;
 import dev.krishnapriya.onboarding.domain.NationalIdRule;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +39,11 @@ public final class DenmarkMarket implements Market {
     @Override
     public Locale locale() {
         return Locale.forLanguageTag("da-DK");
+    }
+
+    @Override
+    public ZoneId zone() {
+        return ZoneId.of("Europe/Copenhagen");
     }
 
     @Override

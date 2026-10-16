@@ -185,7 +185,7 @@ describe('OnboardingFlow', () => {
       expect(button('Continue').disabled).toBe(true);
 
       click(choice('Depot'));
-      expect(choice('Depot').getAttribute('aria-checked')).toBe('true');
+      expect(choice('Depot').querySelector('input')!.checked).toBe(true);
       expect(button('Continue').disabled).toBe(false);
     });
 
@@ -416,6 +416,87 @@ describe('OnboardingFlow', () => {
 
       expect(text()).not.toContain('Demo application complete');
       expect(button('Continue with BankID')).toBeTruthy();
+    });
+  });
+
+  describe('accessibility', () => {
+    const focused = () => document.activeElement?.textContent?.trim();
+    const byId = (id: string) => el().querySelector<HTMLElement>(`#${id}`)!;
+
+    it('tells the user when the eID login fails, and clears it on retry', () => {
+      api.startIdentitySession.mockReturnValue(throwError(() => new Error('offline')));
+      show(DK);
+      click(button('Continue with MitID'));
+
+      const alert = el().querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain("Couldn't reach MitID. Please try again.");
+      expect(button('Continue with MitID').disabled).toBe(false);
+
+      api.startIdentitySession.mockReturnValue(of('sim-session'));
+      click(button('Continue with MitID'));
+      expect(el().querySelector('[role="alert"]')).toBeNull();
+    });
+
+    it("moves focus to each new step's heading", () => {
+      show(DK);
+      click(button('Continue with MitID'));
+      click(button('Continue'));
+      expect(focused()).toBe('Your details');
+
+      click(button('Back'));
+      expect(focused()).toBe('Verify your identity');
+    });
+
+    it('names each detail field by its label alone and links it to its own message', async () => {
+      api.checkNationalId.mockReturnValue(
+        of('You must be at least 18 to open an account yourself.'),
+      );
+      toDetails(DK);
+
+      expect(el().querySelector('label[for="nationalId"]')?.textContent?.trim()).toBe('CPR number');
+      expect(input('nationalId').getAttribute('aria-describedby')).toBe('nationalId-msg');
+      expect(byId('nationalId-msg').getAttribute('aria-live')).toBe('polite');
+
+      type('nationalId', '010115-4123');
+      await pause();
+      expect(input('nationalId').getAttribute('aria-invalid')).toBe('true');
+      expect(byId('nationalId-msg').textContent).toContain('You must be at least 18');
+
+      input('fullName').dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      expect(input('fullName').getAttribute('aria-invalid')).toBe('true');
+      expect(byId('fullName-msg').textContent).toContain('Enter your full name.');
+    });
+
+    it('keeps the ID verdict when coming back to the details step, without asking again', async () => {
+      await toAccountType(DK);
+      expect(api.checkNationalId).toHaveBeenCalledTimes(1);
+
+      click(button('Back'));
+
+      expect(text()).toContain('Looks good.');
+      expect(text()).not.toContain('Checking…');
+      expect(api.checkNationalId).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers the accounts as real radio buttons in a labelled group', async () => {
+      await toAccountType(DK);
+
+      expect(el().querySelector('fieldset legend')?.textContent).toContain('Account type');
+      const radios = el().querySelectorAll<HTMLInputElement>('input[type="radio"]');
+      expect(radios.length).toBe(2);
+      expect([...radios].every((r) => r.name === 'product')).toBe(true);
+      expect(el().querySelector('.choice__name')?.getAttribute('lang')).toBe('da-DK');
+    });
+
+    it('announces finished steps on the progress rail', () => {
+      show(DK);
+      click(button('Continue with MitID'));
+      click(button('Continue'));
+
+      const first = el().querySelector('.rail button')!;
+      expect(first.textContent).toContain(', done');
+      expect(first.querySelector('.rail__n')?.getAttribute('aria-hidden')).toBe('true');
     });
   });
 });

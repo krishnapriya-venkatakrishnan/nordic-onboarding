@@ -1,22 +1,26 @@
 import { Component, input, output } from '@angular/core';
 import { MarketConfig, formatMoney } from '../../core/market';
 
+/** Native radio buttons styled as cards: keyboard users move between accounts with the arrow keys. */
 @Component({
   selector: 'app-product-step',
   template: `
     <h2>Choose an account</h2>
     <p class="lead">The account types offered in {{ config().displayName }}.</p>
-    <div class="choices" role="radiogroup" aria-label="Account type">
+    <fieldset class="choices">
+      <legend class="sr-only">Account type</legend>
       @for (p of config().products; track p.id) {
-        <button
-          type="button"
-          class="choice"
-          role="radio"
-          [attr.aria-checked]="selected() === p.id"
-          [class.choice--on]="selected() === p.id"
-          (click)="select.emit(p.id)"
-        >
-          <span class="choice__name">{{ p.name }}</span>
+        <label class="choice" [class.choice--on]="selected() === p.id">
+          <input
+            type="radio"
+            class="choice__radio"
+            name="product"
+            [value]="p.id"
+            [checked]="selected() === p.id"
+            (change)="select.emit(p.id)"
+          />
+          <!-- Product names are Danish or Swedish words; the lang lets screen readers say them right. -->
+          <span class="choice__name" [attr.lang]="config().locale">{{ p.name }}</span>
           <span class="choice__text">{{ p.summary }}</span>
           <span class="tags">
             @if (p.depositCap !== null) {
@@ -28,9 +32,9 @@ import { MarketConfig, formatMoney } from '../../core/market';
               <span class="tag">One per person</span>
             }
           </span>
-        </button>
+        </label>
       }
-    </div>
+    </fieldset>
   `,
 })
 export class ProductStep {

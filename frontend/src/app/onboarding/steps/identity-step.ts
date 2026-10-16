@@ -16,6 +16,9 @@ import { Component, input, output } from '@angular/core';
       <button type="button" class="btn btn--eid" (click)="verify.emit()" [disabled]="busy()">
         {{ busy() ? 'Waiting for ' + provider() + '…' : 'Continue with ' + provider() }}
       </button>
+      @if (failed()) {
+        <p class="error" role="alert">Couldn't reach {{ provider() }}. Please try again.</p>
+      }
     }
   `,
 })
@@ -23,5 +26,6 @@ export class IdentityStep {
   readonly provider = input.required<string>();
   readonly verified = input(false);
   readonly busy = input(false);
+  readonly failed = input(false);
   readonly verify = output<void>();
 }

@@ -1,4 +1,15 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -8,7 +19,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { Observable, Subscription, catchError, map, of, switchMap, timer } from 'rxjs';
+import { Observable, Subscription, catchError, map, of, switchMap, tap, timer } from 'rxjs';
 import { MarketApi } from '../core/market-api';
 import {
   ApplicationResult,
@@ -37,6 +48,8 @@ export class OnboardingFlow {
   readonly config = input.required<MarketConfig>();
 
   private readonly api = inject(MarketApi);
+  private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+  private readonly injector = inject(Injector);
 
   protected readonly titles = STEP_TITLES;
   protected readonly stepIndex = signal(0);
@@ -44,6 +57,7 @@ export class OnboardingFlow {
 
   protected readonly sessionId = signal<string | null>(null);
   protected readonly verifying = signal(false);
+  protected readonly verifyFailed = signal(false);
   private verification?: Subscription;
   protected readonly productId = signal<string | null>(null);
   protected readonly accepted = signal<ReadonlySet<string>>(new Set());
@@ -101,12 +115,16 @@ export class OnboardingFlow {
 
   protected verify(): void {
     this.verifying.set(true);
+    this.verifyFailed.set(false);
     this.verification = this.api.startIdentitySession(this.config().code).subscribe({
       next: (id) => {
         this.sessionId.set(id);
         this.verifying.set(false);
       },
-      error: () => this.verifying.set(false),
+      error: () => {
+        this.verifying.set(false);
+        this.verifyFailed.set(true);
+      },
     });
   }
 
@@ -132,16 +150,21 @@ export class OnboardingFlow {
       this.submit();
     } else {
       this.stepIndex.update((i) => i + 1);
+      this.focusHeading();
     }
   }
 
   protected back(): void {
     this.stepIndex.update((i) => Math.max(0, i - 1));
+    this.focusHeading();
   }
 
   protected goTo(step: StepType): void {
     const i = this.config().steps.indexOf(step);
-    if (i >= 0 && i < this.stepIndex()) this.stepIndex.set(i);
+    if (i >= 0 && i < this.stepIndex()) {
+      this.stepIndex.set(i);
+      this.focusHeading();
+    }
   }
 
   protected fixError(field: string): void {
@@ -155,6 +178,22 @@ export class OnboardingFlow {
 
   protected startOver(): void {
     this.reset(this.config());
+    this.focusHeading();
+  }
+
+  /**
+   * Moves focus to the new step's heading once it is on screen. Without this, focus stays on
+   * a button that may have just disappeared, and screen reader users don't hear the new step.
+   */
+  private focusHeading(): void {
+    afterNextRender(
+      () => {
+        const heading = this.host.nativeElement.querySelector<HTMLElement>('.card h2');
+        heading?.setAttribute('tabindex', '-1');
+        heading?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   private submit(): void {
@@ -175,6 +214,7 @@ export class OnboardingFlow {
           this.submitting.set(false);
           if (r.accepted) {
             this.result.set(r);
+            this.focusHeading();
             return;
           }
           // The server no longer accepts this eID session, so offer a fresh login.
@@ -195,6 +235,7 @@ export class OnboardingFlow {
     this.verification?.unsubscribe();
     this.submission?.unsubscribe();
     this.verifying.set(false);
+    this.verifyFailed.set(false);
     this.submitting.set(false);
     this.stepIndex.set(0);
     this.sessionId.set(null);
@@ -215,14 +256,21 @@ export class OnboardingFlow {
    * previous check on every keystroke, so the timer works as a debounce.
    */
   private serverIdCheck(market: string): AsyncValidatorFn {
-    return (control: AbstractControl): Observable<ValidationErrors | null> =>
-      control.value
-        ? timer(350).pipe(
-            switchMap(() => this.api.checkNationalId(market, control.value)),
-            map((msg) => (msg ? { server: msg } : null)),
-            // Without this, a network error would leave the field stuck on "Checking…".
-            catchError(() => of({ server: "Couldn't check the number right now. Try again." })),
-          )
-        : of(null);
+    // Coming back to the details step re-runs validation. Answering from memory keeps the
+    // verdict on screen (instead of a "Checking…" nothing would clear) and skips a server call.
+    let last: { value: string; errors: ValidationErrors | null } | null = null;
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      const value: string = control.value;
+      if (!value) return of(null);
+      if (last?.value === value) return of(last.errors);
+      return timer(350).pipe(
+        switchMap(() => this.api.checkNationalId(market, value)),
+        map((msg) => (msg ? { server: msg } : null)),
+        tap((errors) => (last = { value, errors })),
+        // Without this, a network error would leave the field stuck on "Checking…". Not
+        // remembered, so the next attempt asks the server again.
+        catchError(() => of({ server: "Couldn't check the number right now. Try again." })),
+      );
+    };
   }
 }

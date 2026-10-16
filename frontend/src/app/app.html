@@ -63,7 +63,7 @@
           <dd>
             @for (p of c.products; track p.id) {
               <span class="fact-line">
-                {{ p.name }}
+                <span [attr.lang]="c.locale">{{ p.name }}</span>
                 @if (p.depositCap !== null) {
                   <small>cap {{ money(p.depositCap, c) }}</small>
                 }
@@ -90,6 +90,6 @@
       <p class="profile__foot">Illustrative rules for a portfolio demo, not legal or tax text.</p>
     </aside>
   } @else {
-    <p class="loading">Loading markets…</p>
+    <p class="loading" role="status">Loading markets…</p>
   }
 </main>

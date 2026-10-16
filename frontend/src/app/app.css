@@ -12,26 +12,27 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 .brand__mark {
   width: 1.1rem;
   height: 1.1rem;
-  border-radius: 5px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--accent) 50%, var(--ink-3) 50%);
 }
 .brand__tag {
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink-3);
+  background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 0.35rem;
+  border-radius: 999px;
+  padding: 0 0.45rem;
 }
 
 .switch {
   display: inline-flex;
-  background: var(--card);
+  background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 3px;
@@ -39,7 +40,7 @@
 .switch button {
   border: 0;
   background: none;
-  padding: 0.4rem 0.9rem;
+  padding: 0.45rem 1rem;
   border-radius: 999px;
   cursor: pointer;
   color: var(--ink-2);
@@ -69,14 +70,16 @@
 .profile {
   position: sticky;
   top: 1rem;
-  margin-top: 2.6rem;
-  border: 1px dashed var(--line);
+  margin-top: 3.1rem;
+  border: 1px solid rgb(255 255 255 / 0.8);
   border-radius: var(--radius);
   padding: 1.25rem;
-  background: color-mix(in srgb, var(--card) 55%, transparent);
+  background: var(--surface-soft);
+  box-shadow: var(--shadow);
 }
 .profile h2 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
+  font-weight: 400;
 }
 .profile__intro {
   color: var(--ink-2);
@@ -95,7 +98,7 @@
 }
 .facts dt {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-3);
@@ -105,9 +108,9 @@
   font-size: 0.9rem;
 }
 .facts code {
-  background: var(--paper);
+  background: var(--quiet);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 0 0.3rem;
 }
 .fact-line {
@@ -115,7 +118,7 @@
 }
 .fact-line small {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
   margin-left: 0.25rem;
 }
 .arrow {
@@ -123,5 +126,28 @@
   margin: 0 0.25rem;
 }
 .loading {
-  color: var(--ink-3);
+  color: var(--ink-2);
+}
+
+/* Tablet and phone: one column, the panel follows the flow. */
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .profile {
+    position: static;
+    margin-top: 0;
+  }
+}
+@media (max-width: 560px) {
+  .top {
+    padding: 0.9rem 1rem 0.4rem;
+  }
+  .switch {
+    width: 100%;
+  }
+  .switch button {
+    flex: 1;
+  }
 }

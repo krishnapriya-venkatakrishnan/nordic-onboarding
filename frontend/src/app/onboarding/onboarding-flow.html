@@ -3,8 +3,9 @@
     <div class="done__mark" aria-hidden="true">✓</div>
     <h2>Demo application complete</h2>
     <p class="lead">
-      In a real service, your {{ chosenProduct()?.name }} in {{ config().displayName }} would now be
-      opened and hold {{ done.currency }}.
+      In a real service, your
+      <span [attr.lang]="config().locale">{{ chosenProduct()?.name }}</span> in
+      {{ config().displayName }} would now be opened and hold {{ done.currency }}.
     </p>
     <p class="hint">No account was opened and nothing was saved.</p>
     <dl class="summary">
@@ -31,12 +32,21 @@
           [disabled]="i >= stepIndex()"
           [attr.aria-current]="i === stepIndex() ? 'step' : null"
         >
-          <span class="rail__n">{{ i < stepIndex() ? '✓' : i + 1 }}</span>
-          <span class="rail__t">{{ titles[s] }}</span>
+          <span class="rail__n" aria-hidden="true">{{ i < stepIndex() ? '✓' : i + 1 }}</span>
+          <span class="rail__t">
+            {{ titles[s] }}
+            @if (i < stepIndex()) {
+              <span class="sr-only">, done</span>
+            }
+          </span>
         </button>
       </li>
     }
   </ol>
+  <!-- Phone-only summary of the rail; screen readers already get it from the list above. -->
+  <p class="rail-count" aria-hidden="true">
+    {{ titles[step()] }} · {{ stepIndex() + 1 }}/{{ config().steps.length }}
+  </p>
 
   <section class="card">
     @switch (step()) {
@@ -45,6 +55,7 @@
           [provider]="config().identityProvider.displayName"
           [verified]="sessionId() !== null"
           [busy]="verifying()"
+          [failed]="verifyFailed()"
           (verify)="verify()"
         />
       }
@@ -87,7 +98,7 @@
           </div>
           <div>
             <dt>Account</dt>
-            <dd>{{ chosenProduct()?.name }}</dd>
+            <dd [attr.lang]="config().locale">{{ chosenProduct()?.name }}</dd>
           </div>
           <div>
             <dt>Currency</dt>

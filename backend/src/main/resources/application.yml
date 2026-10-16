@@ -1,3 +1,15 @@
+# Markets that are live. A built market stays dark until its code is listed here,
+# so it can ship to production early and launch with a config change.
+markets:
+  enabled: ${MARKETS_ENABLED:SE,DK}
+
+# Framework errors (bad JSON, wrong method...) use the same RFC 9457 shape as our own 404s,
+# so the UI handles one error format.
+spring:
+  mvc:
+    problemdetails:
+      enabled: true
+
 # Cloud Run tells the container which port to listen on through PORT.
 server:
   port: ${PORT:8080}

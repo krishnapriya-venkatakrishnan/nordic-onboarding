@@ -1,0 +1,24 @@
+# Backend (Maven)
+target/
+
+# Frontend (Angular)
+node_modules/
+dist/
+.angular/
+coverage/
+
+# Local environment and secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# Editors and OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Claude Code per-user settings
+.claude/settings.local.json

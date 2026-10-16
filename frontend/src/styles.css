@@ -63,6 +63,10 @@ button {
   outline-offset: 2px;
 }
 
+.lead {
+  color: var(--ink-2);
+  margin: 0 0 1.25rem;
+}
 .eyebrow {
   color: var(--ink-3);
   font-size: 0.8rem;
@@ -80,11 +84,165 @@ button {
   padding: clamp(1.25rem, 3vw, 2rem);
 }
 
+/* Buttons */
+.btn {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: var(--line);
+}
+.btn--ghost:hover:not(:disabled) {
+  background: var(--paper);
+}
+.btn--eid {
+  background: var(--ink);
+  color: var(--card);
+  width: 100%;
+  padding: 0.95rem;
+  font-size: 1rem;
+}
+
+.nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+/* Progress rail */
+.rail {
+  list-style: none;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+}
+.rail li {
+  flex: 1;
+  min-width: 0;
+}
+.rail button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0.4rem 0.25rem;
+  border-top: 3px solid var(--line);
+  text-align: left;
+  color: var(--ink-3);
+  cursor: default;
+}
+.rail--done button {
+  border-top-color: var(--accent);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rail--now button {
+  border-top-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+}
+.rail__n {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  background: var(--line);
+  color: var(--ink-2);
+}
+.rail--done .rail__n,
+.rail--now .rail__n {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.rail__t {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fields */
+.fields {
+  display: grid;
+  gap: 1rem;
+}
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+.field > span {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.field input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+}
+.field input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.field input.ng-invalid.ng-touched:not(.ng-pending) {
+  border-color: var(--err);
+}
+.hint,
+.error {
+  font-size: 0.82rem;
+}
+.hint {
+  color: var(--ink-3);
+}
+.hint--ok {
+  color: var(--ok);
+}
+.error {
+  color: var(--err);
+}
+
+/* Notices */
 .notice {
   border-radius: 10px;
   padding: 0.85rem 1rem;
 }
+.notice--ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-weight: 600;
+}
 .notice--error {
   background: var(--err-soft);
   color: var(--err);
+}
+.tick {
+  margin-right: 0.3rem;
 }

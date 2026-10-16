@@ -9,9 +9,11 @@ import {
   disclosuresFor,
   formatMoney,
 } from './core/market';
+import { OnboardingFlow } from './onboarding/onboarding-flow';
 
 @Component({
   selector: 'app-root',
+  imports: [OnboardingFlow],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

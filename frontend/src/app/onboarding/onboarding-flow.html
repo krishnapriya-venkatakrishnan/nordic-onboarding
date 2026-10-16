@@ -1,0 +1,40 @@
+<ol class="rail" aria-label="Progress">
+  @for (s of config().steps; track s; let i = $index) {
+    <li [class.rail--done]="i < stepIndex()" [class.rail--now]="i === stepIndex()">
+      <button
+        type="button"
+        (click)="goTo(s)"
+        [disabled]="i >= stepIndex()"
+        [attr.aria-current]="i === stepIndex() ? 'step' : null"
+      >
+        <span class="rail__n">{{ i < stepIndex() ? '✓' : i + 1 }}</span>
+        <span class="rail__t">{{ titles[s] }}</span>
+      </button>
+    </li>
+  }
+</ol>
+
+<section class="card">
+  @switch (step()) {
+    @case ('IDENTITY') {
+      <app-identity-step
+        [provider]="config().identityProvider.displayName"
+        [verified]="sessionId() !== null"
+        [busy]="verifying()"
+        (verify)="verify()"
+      />
+    }
+    @case ('PERSONAL_DETAILS') {
+      <app-details-step [form]="details" [config]="config()" />
+    }
+  }
+
+  <div class="nav">
+    @if (stepIndex() > 0) {
+      <button type="button" class="btn btn--ghost" (click)="back()">Back</button>
+    }
+    <button type="button" class="btn btn--primary" (click)="next()" [disabled]="!canContinue()">
+      Continue
+    </button>
+  </div>
+</section>

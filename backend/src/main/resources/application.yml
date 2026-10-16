@@ -1,0 +1,9 @@
+# Cloud Run tells the container which port to listen on through PORT.
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

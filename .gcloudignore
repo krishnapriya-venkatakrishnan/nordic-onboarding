@@ -1,0 +1,6 @@
+# What `gcloud run deploy --source .` uploads to Cloud Build. Docker then narrows it
+# further with .dockerignore. Reusing .gitignore keeps node_modules, build output and
+# the reference copy out of the upload, even when deploying from a laptop.
+.git
+.gcloudignore
+#!include:.gitignore

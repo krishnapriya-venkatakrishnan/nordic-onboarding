@@ -40,3 +40,19 @@ jobs:
       - run: npm ci
       - run: npx ng test --watch=false
       - run: npx ng build
+
+  # The production image: builds, starts, serves page and API, and does not run as root.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t nordic-onboarding .
+      - run: docker run -d --name app -p 8080:8080 nordic-onboarding
+      - run: scripts/smoke-test.sh http://localhost:8080
+      - name: Runs as a non-root user
+        run: |
+          uid=$(docker exec app id -u)
+          echo "runs as uid $uid"
+          test "$uid" -ne 0
+      - if: failure()
+        run: docker logs app

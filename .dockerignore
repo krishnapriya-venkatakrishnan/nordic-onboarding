@@ -1,0 +1,10 @@
+# An allowlist: only the sources the image needs are sent to Docker. Everything else
+# (the reference copy, .git, editor settings, any .env file) can never end up in an image.
+*
+!backend/pom.xml
+!backend/src
+!frontend
+frontend/node_modules
+frontend/dist
+frontend/.angular
+frontend/.vscode

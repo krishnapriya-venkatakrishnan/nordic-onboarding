@@ -1,0 +1,46 @@
+# The kill switch: choose which markets are live, with no build and no release (about a minute).
+# A market left out answers 404 straight away; choose it again to bring it back. Run it from the
+# Actions tab on main, for example when the "Denmark: rejection spike" alert fires.
+name: toggle market
+
+on:
+  workflow_dispatch:
+    inputs:
+      markets:
+        description: Markets that should be live
+        type: choice
+        options: ["SE,DK", "SE", "DK"]
+        default: "SE,DK"
+
+# Shares the release queue, so a toggle and a deploy never change the service at the same time.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  toggle:
+    if: vars.GCP_PROJECT_ID != '' && vars.APP_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # lets GitHub give Google a short-lived proof of "this repo, on main"
+    env:
+      MARKETS: ${{ inputs.markets }}
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Note which markets are live now
+        run: echo "BEFORE=$(curl -fsS "$APP_URL/api/markets" | jq -r '[.[].code] | join(",")')" >>"$GITHUB_ENV"
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - run: scripts/toggle-markets.sh "${{ vars.GCP_PROJECT_ID }}" "$MARKETS"
+      - name: Check every market switched off is dark, and the rest are live
+        run: |
+          dark=$(comm -23 <(tr ',' '\n' <<<"$BEFORE" | sort) <(tr ',' '\n' <<<"$MARKETS" | sort) | paste -sd, -)
+          scripts/check-markets.sh "$APP_URL" "$MARKETS" "$dark"
+      - name: Record the change
+        run: echo "Live markets changed from **${BEFORE}** to **${MARKETS}** by @${{ github.actor }}." >>"$GITHUB_STEP_SUMMARY"

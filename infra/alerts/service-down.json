@@ -1,0 +1,29 @@
+{
+  "displayName": "Nordic Onboarding is down",
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "The health check on `/actuator/health` is failing from two or more locations, so customers probably can't reach the app.\n\n1. Look at Cloud Run → nordic-onboarding → **Revisions** and **Logs**.\n2. If the latest release is the cause, send traffic back to the previous revision (no rebuild):\n   `gcloud run services update-traffic nordic-onboarding --region=europe-north1 --to-revisions=PREVIOUS_REVISION=100`"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Health check failing from 2 or more locations",
+      "conditionThreshold": {
+        "filter": "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" resource.type=\"uptime_url\" metric.label.check_id=\"__CHECK_ID__\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "1200s",
+            "perSeriesAligner": "ALIGN_NEXT_OLDER",
+            "crossSeriesReducer": "REDUCE_COUNT_FALSE",
+            "groupByFields": ["resource.label.host"]
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 1,
+        "duration": "60s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "alertStrategy": { "autoClose": "1800s" }
+}

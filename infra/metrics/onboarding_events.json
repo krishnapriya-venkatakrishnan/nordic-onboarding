@@ -1,0 +1,44 @@
+{
+  "description": "Onboarding events from OnboardingLog, one count each: VERIFIED, ID_REJECTED, SUBMITTED, ACCEPTED or REJECTED, labelled by market, step, outcome and reason. Synthetic sign-ups carry synthetic=true.",
+  "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"nordic-onboarding\" AND jsonPayload.logger=\"onboarding\"",
+  "metricDescriptor": {
+    "metricKind": "DELTA",
+    "valueType": "INT64",
+    "unit": "1",
+    "displayName": "Onboarding events",
+    "labels": [
+      {
+        "key": "market",
+        "valueType": "STRING",
+        "description": "Market code, e.g. SE or DK"
+      },
+      {
+        "key": "step",
+        "valueType": "STRING",
+        "description": "Onboarding step, e.g. PERSONAL_DETAILS"
+      },
+      {
+        "key": "outcome",
+        "valueType": "STRING",
+        "description": "VERIFIED, ID_REJECTED, SUBMITTED, ACCEPTED or REJECTED"
+      },
+      {
+        "key": "reason",
+        "valueType": "STRING",
+        "description": "Rejection reason code, e.g. ID_UNDER_AGE; empty unless rejected"
+      },
+      {
+        "key": "synthetic",
+        "valueType": "STRING",
+        "description": "\"true\" for the hourly synthetic sign-up; empty for real applicants"
+      }
+    ]
+  },
+  "labelExtractors": {
+    "market": "EXTRACT(jsonPayload.market)",
+    "step": "EXTRACT(jsonPayload.step)",
+    "outcome": "EXTRACT(jsonPayload.outcome)",
+    "reason": "EXTRACT(jsonPayload.reason)",
+    "synthetic": "EXTRACT(jsonPayload.synthetic)"
+  }
+}

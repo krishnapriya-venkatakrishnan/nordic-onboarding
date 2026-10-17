@@ -2,7 +2,9 @@ package dev.krishnapriya.onboarding.config;
 
 import dev.krishnapriya.onboarding.domain.Market;
 import dev.krishnapriya.onboarding.domain.MarketRegistry;
+import dev.krishnapriya.onboarding.domain.OnboardingEvents;
 import dev.krishnapriya.onboarding.domain.OnboardingService;
+import dev.krishnapriya.onboarding.logging.OnboardingLog;
 import dev.krishnapriya.onboarding.markets.dk.DenmarkMarket;
 import dev.krishnapriya.onboarding.markets.se.SwedenMarket;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,8 +45,14 @@ public class MarketWiring {
         return Clock.systemUTC();
     }
 
+    /** Onboarding events become structured log lines, which Cloud Logging turns into metrics. */
     @Bean
-    OnboardingService onboardingService(MarketRegistry registry, Clock clock) {
-        return new OnboardingService(registry, clock);
+    OnboardingEvents onboardingEvents() {
+        return new OnboardingLog();
+    }
+
+    @Bean
+    OnboardingService onboardingService(MarketRegistry registry, Clock clock, OnboardingEvents events) {
+        return new OnboardingService(registry, clock, events);
     }
 }

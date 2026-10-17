@@ -1,0 +1,15 @@
+{
+  "displayName": "Nordic Onboarding health",
+  "httpCheck": {
+    "path": "/actuator/health",
+    "port": 443,
+    "useSsl": true,
+    "validateSsl": true,
+    "requestMethod": "GET",
+    "acceptedResponseStatusCodes": [{ "statusClass": "STATUS_CLASS_2XX" }]
+  },
+  "contentMatchers": [{ "content": "\"status\":\"UP\"", "matcher": "CONTAINS_STRING" }],
+  "period": "300s",
+  "timeout": "10s",
+  "selectedRegions": ["EUROPE", "USA", "ASIA_PACIFIC"]
+}

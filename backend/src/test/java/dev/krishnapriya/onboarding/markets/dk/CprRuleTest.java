@@ -1,6 +1,7 @@
 package dev.krishnapriya.onboarding.markets.dk;
 
 import dev.krishnapriya.onboarding.domain.NationalIdResult;
+import dev.krishnapriya.onboarding.domain.RejectionReason;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -55,17 +56,20 @@ class CprRuleTest {
     @Test
     void rejectsImpossibleDate() {
         assertEquals("The date part isn't a real date.", rule.parse("300285-1234", TODAY).error());
+        assertEquals(RejectionReason.ID_INVALID_DATE, rule.parse("300285-1234", TODAY).reason());
     }
 
     @Test
     void rejectsFutureDate() {
         // 7th digit 4 with year 30 means 2030.
         assertEquals("The date part is in the future.", rule.parse("010130-4123", TODAY).error());
+        assertEquals(RejectionReason.ID_FUTURE_DATE, rule.parse("010130-4123", TODAY).reason());
     }
 
     @Test
     void rejectsBadFormat() {
         assertEquals("Use the format DDMMYY-SSSS.", rule.parse("12128-1234", TODAY).error());
+        assertEquals(RejectionReason.ID_FORMAT, rule.parse("12128-1234", TODAY).reason());
         assertEquals("Use the format DDMMYY-SSSS.", rule.parse("abcdef-ghij", TODAY).error());
     }
 

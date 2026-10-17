@@ -1,6 +1,7 @@
 package dev.krishnapriya.onboarding.markets.se;
 
 import dev.krishnapriya.onboarding.domain.NationalIdResult;
+import dev.krishnapriya.onboarding.domain.RejectionReason;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -57,6 +58,7 @@ class PersonnummerRuleTest {
     @Test
     void rejectsWrongCheckDigit() {
         assertFalse(rule.parse("19811218-9875", TODAY).valid());
+        assertEquals(RejectionReason.ID_CHECK_DIGIT, rule.parse("19811218-9875", TODAY).reason());
     }
 
     @Test
@@ -64,6 +66,7 @@ class PersonnummerRuleTest {
         NationalIdResult result = rule.parse("19810230-1234", TODAY);
         assertFalse(result.valid());
         assertEquals("The date part isn't a real date.", result.error());
+        assertEquals(RejectionReason.ID_INVALID_DATE, result.reason());
     }
 
     @Test
@@ -71,11 +74,13 @@ class PersonnummerRuleTest {
         NationalIdResult result = rule.parse("20261231-1239", TODAY);
         assertFalse(result.valid());
         assertEquals("The date part is in the future.", result.error());
+        assertEquals(RejectionReason.ID_FUTURE_DATE, result.reason());
     }
 
     @Test
     void rejectsBadFormat() {
         assertFalse(rule.parse("1981-12-18", TODAY).valid());
+        assertEquals(RejectionReason.ID_FORMAT, rule.parse("1981-12-18", TODAY).reason());
         assertFalse(rule.parse("", TODAY).valid());
     }
 }

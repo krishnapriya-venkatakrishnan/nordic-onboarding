@@ -1,0 +1,174 @@
+{
+  "displayName": "Nordic Onboarding",
+  "mosaicLayout": {
+    "columns": 48,
+    "tiles": [
+      {
+        "xPos": 0, "yPos": 0, "width": 48, "height": 7,
+        "widget": {
+          "title": "How to read this dashboard",
+          "text": {
+            "format": "MARKDOWN",
+            "content": "**Funnel per market:** `VERIFIED` (eID login) → `SUBMITTED` (Open account pressed) → `ACCEPTED` or `REJECTED`. The gap between the lines is where applicants drop off.\n\n`ID_REJECTED` counts every failed ID-number check while typing, so one person can count more than once. Each `REJECTED` application has one reason: the first problem in flow order.\n\nAll charts count the log-based metric `onboarding_events` (see `infra/metrics`), leaving out the hourly synthetic sign-up. No personal data is in it, only codes."
+          }
+        }
+      },
+      {
+        "xPos": 0, "yPos": 7, "width": 24, "height": 12,
+        "widget": {
+          "title": "Sweden: last 24 hours",
+          "timeSeriesTable": {
+            "metricVisualization": "NUMBER",
+            "dataSets": [
+              {
+                "tableTemplate": "${metric.labels.outcome}",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "86400s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.outcome"]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 24, "yPos": 7, "width": 24, "height": 12,
+        "widget": {
+          "title": "Denmark: last 24 hours",
+          "timeSeriesTable": {
+            "metricVisualization": "NUMBER",
+            "dataSets": [
+              {
+                "tableTemplate": "${metric.labels.outcome}",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "86400s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.outcome"]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0, "yPos": 19, "width": 24, "height": 16,
+        "widget": {
+          "title": "Sweden: funnel per hour",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "${metric.labels.outcome}",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "3600s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.outcome"]
+                    }
+                  }
+                }
+              }
+            ],
+            "yAxis": { "label": "events per hour", "scale": "LINEAR" }
+          }
+        }
+      },
+      {
+        "xPos": 24, "yPos": 19, "width": 24, "height": 16,
+        "widget": {
+          "title": "Denmark: funnel per hour",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "${metric.labels.outcome}",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "3600s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.outcome"]
+                    }
+                  }
+                }
+              }
+            ],
+            "yAxis": { "label": "events per hour", "scale": "LINEAR" }
+          }
+        }
+      },
+      {
+        "xPos": 0, "yPos": 35, "width": 32, "height": 16,
+        "widget": {
+          "title": "Rejection reasons per hour, by market",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "legendTemplate": "${metric.labels.market} ${metric.labels.reason}",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "3600s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.market", "metric.label.reason"]
+                    }
+                  }
+                }
+              }
+            ],
+            "yAxis": { "label": "rejections per hour", "scale": "LINEAR" }
+          }
+        }
+      },
+      {
+        "xPos": 32, "yPos": 35, "width": 16, "height": 16,
+        "widget": {
+          "title": "Rejection reasons: last 24 hours",
+          "timeSeriesTable": {
+            "metricVisualization": "NUMBER",
+            "dataSets": [
+              {
+                "tableTemplate": "${metric.labels.market} ${metric.labels.reason}",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\") metric.label.synthetic!=\"true\"",
+                    "aggregation": {
+                      "alignmentPeriod": "86400s",
+                      "perSeriesAligner": "ALIGN_SUM",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.market", "metric.label.reason"]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

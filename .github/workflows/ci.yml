@@ -61,19 +61,27 @@ jobs:
         run: docker logs app 2>/dev/null | jq -e -s 'length > 0 and all(.[]; .severity and .message)'
       - name: The synthetic sign-up's events are tagged
         run: docker logs app 2>/dev/null | jq -e -s '[.[] | select(.logger == "onboarding")] | length > 0 and all(.synthetic == "true")'
+      - name: The kill switch's check sees both markets live
+        run: scripts/check-markets.sh http://localhost:8080 SE,DK
+      - name: With MARKETS_ENABLED=SE, Denmark is dark
+        run: |
+          docker run -d --name sweden-only -p 8081:8080 -e MARKETS_ENABLED=SE nordic-onboarding
+          curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 2 http://localhost:8081/actuator/health
+          scripts/check-markets.sh http://localhost:8081 SE DK
       - if: failure()
         run: docker logs app
 
-  # The release script's logic (no traffic, smoke test, promote) against a fake gcloud.
-  release-script:
+  # The release and kill-switch scripts' logic, against a fake gcloud.
+  scripts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - run: scripts/deploy.test.sh
+      - run: scripts/toggle-markets.test.sh
 
   # Green main ships: only after every check passes, and one deploy at a time.
   deploy:
-    needs: [backend, frontend, container, release-script]
+    needs: [backend, frontend, container, scripts]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     concurrency:

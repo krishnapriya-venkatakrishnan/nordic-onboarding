@@ -66,7 +66,8 @@ jobs:
       - name: With MARKETS_ENABLED=SE, Denmark is dark
         run: |
           docker run -d --name sweden-only -p 8081:8080 -e MARKETS_ENABLED=SE nordic-onboarding
-          curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 2 http://localhost:8081/actuator/health
+          # Docker accepts connections before the app listens and then resets them, so retry every error.
+          curl -fsS -o /dev/null --retry 30 --retry-all-errors --retry-delay 2 http://localhost:8081/actuator/health
           scripts/check-markets.sh http://localhost:8081 SE DK
       - if: failure()
         run: docker logs app

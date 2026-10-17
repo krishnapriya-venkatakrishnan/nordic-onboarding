@@ -8,7 +8,7 @@ Account opening for a Nordic savings and investment platform that launches in a 
 
 > A personal portfolio project, not affiliated with any bank. Product rules are simplified and illustrative, not legal or tax text. The eID login is simulated, and submitting an application stores and sends nothing: it only shows a confirmation.
 
-**Stack:** Angular 21 (standalone components, signals) · Java 25 / Spring Boot 4.1 · GitHub Actions · Google Cloud Run · Cloud Logging and Monitoring
+**Stack:** Angular 21 (standalone components, signals, installable PWA) · Java 25 / Spring Boot 4.1 · GitHub Actions · Google Cloud Run · Cloud Logging and Monitoring
 
 > **Reviewing this? Start here (5 minutes):** [`Market.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/Market.java) (the plug-in contract) → [`DenmarkMarket.java`](backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java) (a market's data in one file, with its ID rule beside it) → [`OnboardingService.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/OnboardingService.java) (shared rules, written once) → [`MarketContractTest.java`](backend/src/test/java/dev/krishnapriya/onboarding/domain/MarketContractTest.java) (what every new market must pass) → [`onboarding-flow.ts`](frontend/src/app/onboarding/onboarding-flow.ts) (a UI with no country code)
 
@@ -52,6 +52,7 @@ flowchart LR
 - **Rules are data.** Denmark's deposit cap is a dated map (`2025 → 166,200`, `2026 → 174,200`), not an `if`. A new year's cap is one entry.
 - **Time comes from an injected clock, read in each market's own time zone**, so an 18th birthday and the new year's cap both start at local midnight, and tests can pin "today".
 - **The frontend never branches on a market code.** The steps, field labels, ID format, products, caps and confirmations all come from `/api/markets/{code}/onboarding`. The ID number is checked as you type: first against the market's format pattern, then by the server, which owns the real rule.
+- **It installs as an app (PWA).** On a phone, "Add to Home Screen" gives it its own icon and window. A service worker keeps the app itself for an offline start, but never the API's answers: a cached market config could show a market the kill switch has turned off.
 
 <img src="docs/mobile.png" width="360" alt="On a phone: the server's age rule answering as you type">
 
@@ -76,7 +77,7 @@ flowchart LR
   S -->|fail| X["Customers stay on<br/>the current revision"]
 ```
 
-- **Every change is tested before it reaches main**, in four jobs. The **backend** runs 114 tests, including ArchUnit and the contract tests; the **frontend** runs 36 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as non-root, logs JSON, completes a synthetic sign-up in both markets, and goes dark for a market that's switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
+- **Every change is tested before it reaches main**, in four jobs. The **backend** runs 114 tests, including ArchUnit and the contract tests; the **frontend** runs 38 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as non-root, logs JSON, completes a synthetic sign-up in both markets, can be installed as a PWA, and goes dark for a market that's switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
 - **Green main ships by itself.** GitHub signs in to Google with Workload Identity Federation: no stored keys, and only this repo's main branch can deploy. Three narrow identities do the work: one deploys, one builds the image, and the app runs as one with no permissions at all.
 - **Releases are tested in private first.** A new version gets no traffic until its own tagged address passes the smoke test, so a broken build never reaches customers. During a real release, a script calling the live API every 2 seconds got 86 out of 86 successful answers over 3 minutes.
 - **Rolling back is one command**, with no rebuild: `gcloud run services update-traffic nordic-onboarding --to-revisions=<previous>=100`.
@@ -113,6 +114,7 @@ flowchart LR
 | `CloudLoggingFormatTest`, `StructuredLoggingTest`, `NationalIdMaskTest` | JSON in Cloud Logging's shape; ID numbers masked in messages, fields and stack traces |
 | `LogMetricContractTest`, `MonitoringConfigContractTest` | the metric, dashboard and alerts only use fields, outcomes and reasons the app writes, and leave synthetic traffic out |
 | `market.spec.ts`, `market-api.spec.ts`, `app.spec.ts`, `onboarding-flow.spec.ts` | helpers, the API client, the market switcher, and the whole flow: eID per market, gating on Continue, server errors linking back, reset on switching market, accessibility |
+| `service-worker.spec.ts`, `scripts/check-pwa.sh` | the service worker never answers for the API; the real container serves the manifest, icons and worker so the app can be installed |
 | `scripts/*.test.sh` | release (no traffic until the smoke test passes) and kill switch (refuses malformed input) against a fake `gcloud` |
 
 ## Run it locally

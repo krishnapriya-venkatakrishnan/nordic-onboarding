@@ -61,6 +61,8 @@ jobs:
         run: docker logs app 2>/dev/null | jq -e -s 'length > 0 and all(.[]; .severity and .message)'
       - name: The synthetic sign-up's events are tagged
         run: docker logs app 2>/dev/null | jq -e -s '[.[] | select(.logger == "onboarding")] | length > 0 and all(.synthetic == "true")'
+      - name: The app can be installed as a PWA
+        run: scripts/check-pwa.sh http://localhost:8080
       - name: The kill switch's check sees both markets live
         run: scripts/check-markets.sh http://localhost:8080 SE,DK
       - name: With MARKETS_ENABLED=SE, Denmark is dark

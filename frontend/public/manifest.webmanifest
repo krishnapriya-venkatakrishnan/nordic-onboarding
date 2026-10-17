@@ -1,0 +1,36 @@
+{
+  "name": "Nordic Onboarding",
+  "short_name": "Onboarding",
+  "description": "Multi-market account opening demo: one flow, markets as configuration.",
+  "display": "standalone",
+  "scope": "./",
+  "start_url": "./",
+  "theme_color": "#f4f6fa",
+  "background_color": "#f4f6fa",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

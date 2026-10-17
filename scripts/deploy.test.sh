@@ -10,6 +10,10 @@ cat >"$fake/gcloud" <<'EOF'
 #!/usr/bin/env bash
 echo "gcloud $*" >>"$CALLS"
 case "$*" in
+  *"meta list-files-for-upload"*)
+    printf 'Dockerfile\nbackend/pom.xml\n'
+    [ "${UPLOAD_CREDS:-no}" = yes ] && echo gha-creds-1234abcd.json
+    true ;;
   *"services describe"*"--format=json"*)
     echo '{"status":{"traffic":[{"percent":100,"revisionName":"svc-00001"},
            {"tag":"candidate","revisionName":"svc-00002","url":"https://candidate---svc.run.app"}]}}' ;;
@@ -43,3 +47,12 @@ echo "ok   a failing candidate gets no traffic, and the release fails"
 release no smoke-pass || fail "a first deploy should succeed"
 called "--no-traffic" && fail "a first deploy can't use --no-traffic"
 echo "ok   a first-ever deploy creates the service directly"
+
+if UPLOAD_CREDS=yes release yes smoke-pass; then fail "credentials in the upload should stop the release"; fi
+called "run deploy" && fail "nothing may be deployed when credentials would be uploaded"
+echo "ok   a release is refused if a credentials file would be uploaded"
+
+# The real ignore rules: a credentials file in the checkout is neither committed nor uploaded.
+git check-ignore -q gha-creds-1234abcd.json || fail ".gitignore must cover gha-creds-*.json"
+grep -qx '#!include:.gitignore' .gcloudignore || fail ".gcloudignore must include .gitignore"
+echo "ok   gha-creds-*.json is ignored by git and, through .gitignore, by the deploy upload"

@@ -24,6 +24,12 @@ settings=(
   --max-instances=1
 )
 
+# A safety net under .gcloudignore: never upload a credentials file with the source.
+if gcloud meta list-files-for-upload . | grep -qE '(^|/)gha-creds-[^/]*\.json$'; then
+  echo "Refusing to deploy: a gha-creds-*.json credentials file would be uploaded." >&2
+  exit 1
+fi
+
 # --no-traffic can't create a service, so a first-ever deploy goes live straight away.
 if ! gcloud run services describe "$service" "${where[@]}" >/dev/null 2>&1; then
   gcloud run deploy "$service" "${where[@]}" "${settings[@]}"

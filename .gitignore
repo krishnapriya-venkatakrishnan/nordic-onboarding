@@ -13,6 +13,9 @@ coverage/
 # Local environment and secrets
 .env
 .env.*
+# Short-lived sign-in file the CI auth step writes into the checkout. Listed here so it is never
+# committed, and (because .gcloudignore includes this file) never uploaded with a deploy.
+gha-creds-*.json
 
 # Logs
 *.log

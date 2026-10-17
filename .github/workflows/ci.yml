@@ -1,4 +1,4 @@
-# Every change is tested before it reaches main, and main is tested again after merge.
+# Every change is tested before it reaches main; main is tested again after merge and, if green, deployed.
 name: ci
 
 on:
@@ -6,9 +6,10 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push cancels a branch's older run, but never a main run, which may be mid-deploy.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
@@ -40,3 +41,46 @@ jobs:
       - run: npm ci
       - run: npx ng test --watch=false
       - run: npx ng build
+
+  # The production image: builds, starts, serves page and API, and does not run as root.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t nordic-onboarding .
+      - run: docker run -d --name app -p 8080:8080 nordic-onboarding
+      - run: scripts/smoke-test.sh http://localhost:8080
+      - name: Runs as a non-root user
+        run: |
+          uid=$(docker exec app id -u)
+          echo "runs as uid $uid"
+          test "$uid" -ne 0
+      - if: failure()
+        run: docker logs app
+
+  # The release script's logic (no traffic, smoke test, promote) against a fake gcloud.
+  release-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/deploy.test.sh
+
+  # Green main ships: only after every check passes, and one deploy at a time.
+  deploy:
+    needs: [backend, frontend, container, release-script]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # lets GitHub give Google a short-lived proof of "this repo, on main"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - run: scripts/deploy.sh ${{ vars.GCP_PROJECT_ID }}

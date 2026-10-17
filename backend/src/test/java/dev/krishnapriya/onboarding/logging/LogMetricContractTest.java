@@ -9,6 +9,7 @@ import dev.krishnapriya.onboarding.domain.RejectionReason;
 import dev.krishnapriya.onboarding.domain.StepType;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -59,18 +60,23 @@ class LogMetricContractTest {
             String field = extractor.substring("EXTRACT(jsonPayload.".length(), extractor.length() - 1);
             assertTrue(written.has(field), () -> "the app writes no '" + field + "' field: " + written);
         }
-        assertEquals(Set.of("market", "step", "outcome", "reason"), labels);
+        assertEquals(Set.of("market", "step", "outcome", "reason", "synthetic"), labels);
     }
 
-    /** Logs the event through the real OnboardingLog and formats it as the container would. */
+    /**
+     * Logs the event through the real OnboardingLog and formats it as the container would, as part
+     * of a synthetic request, so every field a label can come from is present.
+     */
     private String logLine(OnboardingEvent event) {
         Logger logger = (Logger) LoggerFactory.getLogger("onboarding");
         ListAppender<ILoggingEvent> captured = new ListAppender<>();
         captured.start();
         logger.addAppender(captured);
+        MDC.put("synthetic", "true");
         try {
             new OnboardingLog().record(event);
         } finally {
+            MDC.remove("synthetic");
             logger.detachAppender(captured);
         }
         return new CloudLoggingFormat().format(captured.list.getFirst());

@@ -55,8 +55,12 @@ jobs:
           uid=$(docker exec app id -u)
           echo "runs as uid $uid"
           test "$uid" -ne 0
+      - name: The synthetic sign-up succeeds in every market
+        run: scripts/synthetic-signup.sh http://localhost:8080
       - name: Logs are JSON that Cloud Logging can read
         run: docker logs app 2>/dev/null | jq -e -s 'length > 0 and all(.[]; .severity and .message)'
+      - name: The synthetic sign-up's events are tagged
+        run: docker logs app 2>/dev/null | jq -e -s '[.[] | select(.logger == "onboarding")] | length > 0 and all(.synthetic == "true")'
       - if: failure()
         run: docker logs app
 

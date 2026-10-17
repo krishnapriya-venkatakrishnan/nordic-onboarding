@@ -1,0 +1,21 @@
+# Every hour, sign up in each live market against production, the way a customer would.
+# A failed run shows up in GitHub and emails whoever last changed this schedule. Its traffic is
+# tagged, so the dashboard and alerts leave it out.
+name: synthetic sign-up
+
+on:
+  schedule:
+    - cron: "23 * * * *" # hourly, off the hour, when GitHub's scheduler is less busy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sign-up:
+    if: vars.APP_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/synthetic-signup.sh "${{ vars.APP_URL }}"

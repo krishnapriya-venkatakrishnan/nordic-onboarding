@@ -69,6 +69,18 @@ class MonitoringConfigContractTest {
         }
     }
 
+    /** The hourly synthetic sign-up must not show up as customers, nor hide a Danish spike. */
+    @Test
+    void everyChartAndAlertLeavesOutSyntheticTraffic() {
+        for (Path file : files) {
+            JsonNode root = read(file);
+            Stream.concat(root.findValues("filter").stream(), root.findValues("denominatorFilter").stream())
+                    .map(JsonNode::asString)
+                    .filter(f -> f.contains(METRIC_TYPE))
+                    .forEach(f -> assertTrue(f.contains("metric.label.synthetic!=\"true\""), () -> file + ": " + f));
+        }
+    }
+
     @Test
     void dashboardShowsSwedenAndDenmarkSideBySide() {
         String text = onboardingFilters(INFRA.resolve("dashboards/onboarding.json"));

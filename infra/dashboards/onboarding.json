@@ -9,7 +9,7 @@
           "title": "How to read this dashboard",
           "text": {
             "format": "MARKDOWN",
-            "content": "**Funnel per market:** `VERIFIED` (eID login) → `SUBMITTED` (Open account pressed) → `ACCEPTED` or `REJECTED`. The gap between the lines is where applicants drop off.\n\n`ID_REJECTED` counts every failed ID-number check while typing, so one person can count more than once. Each `REJECTED` application has one reason: the first problem in flow order.\n\nAll charts count the log-based metric `onboarding_events` (see `infra/metrics`). No personal data is in it, only codes."
+            "content": "**Funnel per market:** `VERIFIED` (eID login) → `SUBMITTED` (Open account pressed) → `ACCEPTED` or `REJECTED`. The gap between the lines is where applicants drop off.\n\n`ID_REJECTED` counts every failed ID-number check while typing, so one person can count more than once. Each `REJECTED` application has one reason: the first problem in flow order.\n\nAll charts count the log-based metric `onboarding_events` (see `infra/metrics`), leaving out the hourly synthetic sign-up. No personal data is in it, only codes."
           }
         }
       },
@@ -24,7 +24,7 @@
                 "tableTemplate": "${metric.labels.outcome}",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "86400s",
                       "perSeriesAligner": "ALIGN_SUM",
@@ -49,7 +49,7 @@
                 "tableTemplate": "${metric.labels.outcome}",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "86400s",
                       "perSeriesAligner": "ALIGN_SUM",
@@ -75,7 +75,7 @@
                 "minAlignmentPeriod": "3600s",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"SE\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "3600s",
                       "perSeriesAligner": "ALIGN_SUM",
@@ -102,7 +102,7 @@
                 "minAlignmentPeriod": "3600s",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=one_of(\"VERIFIED\",\"SUBMITTED\",\"ACCEPTED\",\"REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "3600s",
                       "perSeriesAligner": "ALIGN_SUM",
@@ -129,7 +129,7 @@
                 "minAlignmentPeriod": "3600s",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "3600s",
                       "perSeriesAligner": "ALIGN_SUM",
@@ -155,7 +155,7 @@
                 "tableTemplate": "${metric.labels.market} ${metric.labels.reason}",
                 "timeSeriesQuery": {
                   "timeSeriesFilter": {
-                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\")",
+                    "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.outcome=one_of(\"REJECTED\",\"ID_REJECTED\") metric.label.synthetic!=\"true\"",
                     "aggregation": {
                       "alignmentPeriod": "86400s",
                       "perSeriesAligner": "ALIGN_SUM",

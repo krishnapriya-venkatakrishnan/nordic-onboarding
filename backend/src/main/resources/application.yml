@@ -13,6 +13,9 @@ spring:
 # Cloud Run tells the container which port to listen on through PORT.
 server:
   port: ${PORT:8080}
+  # Tomcat doesn't know the PWA manifest's extension and would serve it as a binary download.
+  mime-mappings:
+    webmanifest: application/manifest+json
 
 management:
   endpoints:

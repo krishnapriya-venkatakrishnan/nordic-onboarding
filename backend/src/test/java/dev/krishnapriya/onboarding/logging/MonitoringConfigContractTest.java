@@ -89,6 +89,18 @@ class MonitoringConfigContractTest {
                 Set.of("VERIFIED", "SUBMITTED", "ACCEPTED", "REJECTED", "ID_REJECTED")));
     }
 
+    /**
+     * A line needs two points, so an hourly line chart stays blank until traffic spans two hours,
+     * which is most of the time at this app's volume. A bar shows a single hour.
+     */
+    @Test
+    void hourlyChartsDrawBars() {
+        List<String> plots = read(INFRA.resolve("dashboards/onboarding.json")).findValues("plotType").stream()
+                .map(JsonNode::asString).toList();
+        assertFalse(plots.isEmpty());
+        assertTrue(plots.stream().allMatch("STACKED_BAR"::equals), () -> "plot types: " + plots);
+    }
+
     /** The spike alert compares Denmark's REJECTED with its SUBMITTED; both must be real outcomes. */
     @Test
     void denmarkAlertComparesRejectedWithSubmitted() {

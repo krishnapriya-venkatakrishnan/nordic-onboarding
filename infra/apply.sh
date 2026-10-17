@@ -18,3 +18,20 @@ for file in metrics/*.json; do
     gcloud logging metrics create "$name" --project="$project" --config-from-file="$file"
   fi
 done
+
+# Dashboards: one file per dashboard, matched to the live one by its title. The repo's version
+# always wins: an update must carry the live etag, so take it just before replacing.
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+for file in dashboards/*.json; do
+  title=$(jq -r .displayName "$file")
+  existing=$(gcloud monitoring dashboards list --project="$project" \
+    --filter="displayName=\"$title\"" --format="value(name)")
+  if [ -n "$existing" ]; then
+    etag=$(gcloud monitoring dashboards describe "$existing" --project="$project" --format="value(etag)")
+    jq --arg etag "$etag" '. + {etag: $etag}' "$file" >"$tmp"
+    gcloud monitoring dashboards update "$existing" --project="$project" --config-from-file="$tmp"
+  else
+    gcloud monitoring dashboards create --project="$project" --config-from-file="$file"
+  fi
+done

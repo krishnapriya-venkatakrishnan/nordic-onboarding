@@ -1,0 +1,41 @@
+{
+  "displayName": "Denmark: rejection spike",
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "More than half of Denmark's applications were rejected in the last 30 minutes, with at least 5 submitted.\n\n1. Open the **Nordic Onboarding** dashboard and check *Rejection reasons* for Denmark.\n2. If Denmark itself is broken (not just bad input), switch it off without a deploy: run the **Toggle market** workflow so that only `SE` is enabled. Denmark then answers 404 until it is switched back on."
+  },
+  "combiner": "AND",
+  "conditions": [
+    {
+      "displayName": "Over 50% of Denmark's submissions rejected (30 min)",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=\"REJECTED\"",
+        "aggregations": [
+          { "alignmentPeriod": "1800s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "denominatorFilter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=\"SUBMITTED\"",
+        "denominatorAggregations": [
+          { "alignmentPeriod": "1800s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0.5,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    },
+    {
+      "displayName": "At least 5 Danish submissions (30 min)",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/onboarding_events\" resource.type=\"cloud_run_revision\" metric.label.market=\"DK\" metric.label.outcome=\"SUBMITTED\"",
+        "aggregations": [
+          { "alignmentPeriod": "1800s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 4,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "alertStrategy": { "autoClose": "3600s" }
+}

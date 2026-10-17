@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1.1rem 1rem;
 }
@@ -28,6 +28,41 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0 0.45rem;
+}
+.top__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Quiet on purpose: it opens notes about the demo, not a step of the flow. */
+.info-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.info-toggle[aria-expanded='true'] {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+.info-toggle__icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .switch {
@@ -57,54 +92,90 @@
   margin-right: 0.2rem;
 }
 
-.layout {
-  max-width: 1080px;
+/* The product: the flow, centred. The notes panel joins it as a second column when opened. */
+.page {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 1rem 4rem;
+  padding: 0 1rem 3rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
 }
-
-.profile {
-  position: sticky;
-  top: 1rem;
-  margin-top: 3.1rem;
-  border: 1px solid rgb(255 255 255 / 0.8);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-  background: var(--surface-soft);
-  box-shadow: var(--shadow);
+.layout {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: 1.25rem;
 }
-.profile h2 {
-  font-size: 1.1rem;
-  font-weight: 400;
+.hero {
+  text-align: center;
+  margin: 0.5rem 0 1.75rem;
 }
-.profile__intro {
+.loading {
   color: var(--ink-2);
-  font-size: 0.86rem;
-  margin: 0.25rem 0 1rem;
 }
-.profile__foot {
-  color: var(--ink-3);
-  font-size: 0.75rem;
-  margin: 1rem 0 0;
+
+.info {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem 1.25rem;
 }
-.facts {
+.info__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.info h2 {
+  font-size: 1.15rem;
+  font-weight: 400;
   margin: 0;
-  display: grid;
-  gap: 0.75rem;
 }
-.facts dt {
+.info__close {
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.info__close:hover {
+  background: var(--quiet);
+}
+.info__intro {
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  margin: 0.4rem 0 0;
+}
+.info h3 {
   font-size: 0.72rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-3);
+  margin: 1.25rem 0 0.5rem;
+}
+.facts {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.facts > div {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.facts dt {
+  color: var(--ink-3);
+  font-size: 0.86rem;
 }
 .facts dd {
-  margin: 0.1rem 0 0;
+  margin: 0;
   font-size: 0.9rem;
 }
 .facts code {
@@ -112,42 +183,99 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 0.3rem;
+  white-space: nowrap;
 }
-.fact-line {
-  display: block;
+.product {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
 }
-.fact-line small {
-  color: var(--accent);
+.product + .product {
+  margin-top: 0.3rem;
+}
+.product__name {
   font-weight: 500;
-  margin-left: 0.25rem;
 }
-.arrow {
-  color: var(--ink-3);
-  margin: 0 0.25rem;
+.product__meta {
+  font-size: 0.78rem;
+  color: var(--accent);
 }
-.loading {
+.same {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.3rem;
   color: var(--ink-2);
+  font-size: 0.86rem;
+}
+.info__foot {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.info__repo {
+  color: var(--accent);
+  font-size: 0.86rem;
+  font-weight: 500;
 }
 
-/* Tablet and phone: one column, the panel follows the flow. */
-@media (max-width: 860px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+/* Wide screens: the notes sit beside the flow, which moves left to make room. */
+@media (min-width: 1100px) {
+  .page--info {
+    grid-template-columns: minmax(0, 1fr) 360px;
   }
-  .profile {
-    position: static;
-    margin-top: 0;
+  .info {
+    position: sticky;
+    top: 1rem;
+    margin-top: 1.25rem;
+    /* Scrolls on its own, so the link at the end stays reachable on a short window. */
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
   }
 }
+
+/* Narrower screens: the notes rise as a sheet from the bottom; the switcher stays usable. */
+@media (max-width: 1099px) {
+  .info {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    max-width: 720px;
+    max-height: 70vh;
+    margin: 0 auto;
+    overflow-y: auto;
+    border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: 0 -8px 30px rgb(28 34 48 / 0.18);
+  }
+  .info::before {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    margin: -0.3rem auto 0.7rem;
+  }
+}
+
 @media (max-width: 560px) {
   .top {
     padding: 0.9rem 1rem 0.4rem;
   }
+  .top__actions,
   .switch {
     width: 100%;
   }
   .switch button {
     flex: 1;
+  }
+  .hero {
+    text-align: left;
+    margin-bottom: 1.25rem;
   }
 }

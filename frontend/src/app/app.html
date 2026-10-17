@@ -4,92 +4,123 @@
     <span>Nordic Onboarding</span>
     <span class="brand__tag">demo</span>
   </div>
-  @if (markets().length) {
-    <div class="switch" role="group" aria-label="Market">
-      @for (m of markets(); track m.code) {
-        <button
-          type="button"
-          [attr.aria-pressed]="selected() === m.code"
-          [class.switch--on]="selected() === m.code"
-          (click)="choose(m.code)"
-        >
-          <span class="switch__code" aria-hidden="true">{{ m.code }}</span> {{ m.displayName }}
-        </button>
-      }
-    </div>
-  }
+  <div class="top__actions">
+    <button
+      #infoButton
+      type="button"
+      class="info-toggle"
+      [attr.aria-expanded]="infoOpen()"
+      aria-controls="demo-info"
+      (click)="toggleInfo()"
+    >
+      <span class="info-toggle__icon" aria-hidden="true">i</span>
+      How this demo works
+    </button>
+    @if (markets().length) {
+      <div class="switch" role="group" aria-label="Market">
+        @for (m of markets(); track m.code) {
+          <button
+            type="button"
+            [attr.aria-pressed]="selected() === m.code"
+            [class.switch--on]="selected() === m.code"
+            (click)="choose(m.code)"
+          >
+            <span class="switch__code" aria-hidden="true">{{ m.code }}</span> {{ m.displayName }}
+          </button>
+        }
+      </div>
+    }
+  </div>
 </header>
 
-<main class="layout">
-  @if (loadError()) {
-    <section class="card notice notice--error" role="alert">
-      Couldn't reach the API. Is the backend running on port 8080?
-    </section>
-  } @else if (config(); as c) {
-    <div class="flow">
-      <p class="eyebrow">Open an account · {{ c.displayName }}</p>
-      <h1>Start investing in a few minutes</h1>
+<div class="page" [class.page--info]="infoOpen() && config()">
+  <main class="layout">
+    @if (loadError()) {
+      <section class="card notice notice--error" role="alert">
+        Couldn't reach the API. Is the backend running on port 8080?
+      </section>
+    } @else if (config(); as c) {
+      <div class="hero">
+        <p class="eyebrow">Open an account · {{ c.displayName }}</p>
+        <h1>Start investing in a few minutes</h1>
+      </div>
       <app-onboarding-flow [config]="c" />
-    </div>
+    } @else {
+      <p class="loading" role="status">Loading markets…</p>
+    }
+  </main>
 
-    <aside class="profile" aria-labelledby="profile-title">
-      <h2 id="profile-title">What {{ c.displayName }} plugs in</h2>
-      <p class="profile__intro">
-        The onboarding flow is the same code for every market. Only this configuration changes.
+  <!-- Notes for visitors about the demo. Kept out of the customer's flow, shown only when asked. -->
+  @if (infoOpen() && config(); as c) {
+    <section id="demo-info" class="info" aria-labelledby="demo-info-title">
+      <div class="info__head">
+        <h2 id="demo-info-title" tabindex="-1">How this demo works</h2>
+        <button type="button" class="info__close" aria-label="Close" (click)="closeInfo()">
+          ×
+        </button>
+      </div>
+      <p class="info__intro">
+        {{ marketNames() }} run the same code. Switch country above: only these settings change.
       </p>
+
+      <h3>What {{ c.displayName }} plugs in</h3>
       <dl class="facts">
         <div>
           <dt>eID</dt>
           <dd>{{ c.identityProvider.displayName }}</dd>
         </div>
         <div>
-          <dt>National ID</dt>
+          <dt>ID number</dt>
           <dd>
             {{ c.nationalId.label }} <code>{{ c.nationalId.placeholder }}</code>
           </dd>
         </div>
         <div>
-          <dt>Currency · locale</dt>
+          <dt>Money</dt>
           <dd>
             {{ c.currency }} · <code>{{ c.locale }}</code>
           </dd>
         </div>
         <div>
-          <dt>Minimum age</dt>
-          <dd>{{ c.minimumAge }}</dd>
-        </div>
-        <div>
-          <dt>Products</dt>
+          <dt>Accounts</dt>
           <dd>
             @for (p of c.products; track p.id) {
-              <span class="fact-line">
-                <span [attr.lang]="c.locale">{{ p.name }}</span>
+              <span class="product">
+                <span class="product__name" [attr.lang]="c.locale">{{ p.name }}</span>
                 @if (p.depositCap !== null) {
-                  <small>cap {{ money(p.depositCap, c) }}</small>
+                  <span class="product__meta">cap {{ money(p.depositCap, c) }} / year</span>
+                }
+                @if (extraConfirmations(c, p.id); as n) {
+                  <span class="product__meta">+{{ n }} confirmation{{ n === 1 ? '' : 's' }}</span>
                 }
               </span>
             }
           </dd>
         </div>
-        <div>
-          <dt>Confirmations</dt>
-          <dd>{{ requiredCount(c) }} required · {{ scopedCount(c) }} product-specific</dd>
-        </div>
-        <div>
-          <dt>Steps</dt>
-          <dd>
-            @for (s of c.steps; track s; let last = $last) {
-              {{ titles[s] }}
-              @if (!last) {
-                <span class="arrow" aria-hidden="true">→</span>
-              }
-            }
-          </dd>
-        </div>
       </dl>
-      <p class="profile__foot">Illustrative rules for a portfolio demo, not legal or tax text.</p>
-    </aside>
-  } @else {
-    <p class="loading" role="status">Loading markets…</p>
+
+      <h3>Same in every market</h3>
+      <ul class="same">
+        <li>One codebase: this page, the API and the onboarding rules</li>
+        <li>The step screens. A market picks which steps it uses; the screens are shared.</li>
+        <li>
+          The checks every application must pass: a verified identity, a valid ID number, the
+          minimum age, an offered account and its confirmations. The server runs them again before
+          an account opens.
+        </li>
+      </ul>
+
+      <p class="info__foot">
+        Portfolio demo · not a bank · rules are illustrative, not legal or tax text · nothing is
+        stored
+      </p>
+      <a
+        class="info__repo"
+        href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding"
+        target="_blank"
+        rel="noopener"
+        >Source on GitHub ↗</a
+      >
+    </section>
   }
-</main>
+</div>

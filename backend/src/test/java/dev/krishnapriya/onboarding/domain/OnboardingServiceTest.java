@@ -1,5 +1,6 @@
 package dev.krishnapriya.onboarding.domain;
 
+import dev.krishnapriya.onboarding.domain.OnboardingEvent.Outcome;
 import dev.krishnapriya.onboarding.markets.dk.DenmarkMarket;
 import dev.krishnapriya.onboarding.markets.se.SwedenMarket;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -19,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OnboardingServiceTest {
 
-    private final OnboardingService service = serviceOn(LocalDate.of(2026, 10, 15));
+    private final List<OnboardingEvent> events = new ArrayList<>();
+    private final OnboardingService service = serviceOn(LocalDate.of(2026, 10, 15), events::add);
 
     @Test
     void depositCapIsResolvedForTheCurrentYear() {
@@ -113,7 +116,59 @@ class OnboardingServiceTest {
 
         assertEquals(List.of("identity", "nationalId", "fullName", "email", "productId",
                 "disclosures.terms", "disclosures.kyc"), fields(result));
+        assertEquals(List.of(RejectionReason.IDENTITY_NOT_VERIFIED, RejectionReason.ID_FORMAT,
+                RejectionReason.NAME_MISSING, RejectionReason.EMAIL_INVALID, RejectionReason.PRODUCT_NOT_OFFERED,
+                RejectionReason.CONFIRMATION_MISSING, RejectionReason.CONFIRMATION_MISSING),
+                result.errors().stream().map(FieldError::code).toList());
         assertNull(result.applicationId());
+    }
+
+    @Test
+    void recordsAVerifiedLoginForItsMarket() {
+        service.startIdentitySession("dk");
+        assertEquals(List.of(event("DK", StepType.IDENTITY, Outcome.VERIFIED, null)), events);
+    }
+
+    @Test
+    void recordsWhyAnIdNumberWasRejected() {
+        service.checkNationalId("SE", "19811218-9875");
+        service.checkNationalId("DK", "010115-4123");
+        service.checkNationalId("DK", "12345");
+        service.checkNationalId("SE", "19811218-9876"); // valid: nothing to record
+
+        assertEquals(List.of(
+                event("SE", StepType.PERSONAL_DETAILS, Outcome.ID_REJECTED, RejectionReason.ID_CHECK_DIGIT),
+                event("DK", StepType.PERSONAL_DETAILS, Outcome.ID_REJECTED, RejectionReason.ID_UNDER_AGE),
+                event("DK", StepType.PERSONAL_DETAILS, Outcome.ID_REJECTED, RejectionReason.ID_FORMAT)), events);
+    }
+
+    @Test
+    void recordsEverySubmissionAndItsAcceptance() {
+        service.submit("DK", danishRequest("depot", Set.of("terms", "kyc")));
+
+        assertEquals(List.of(
+                event("DK", StepType.IDENTITY, Outcome.VERIFIED, null),
+                event("DK", StepType.REVIEW, Outcome.SUBMITTED, null),
+                event("DK", StepType.REVIEW, Outcome.ACCEPTED, null)), events);
+    }
+
+    /** One reason per rejection: the first problem in flow order, so it can be counted cleanly. */
+    @Test
+    void recordsTheFirstReasonARejectedApplicationStopped() {
+        service.submit("SE", new ApplicationRequest(null, "123", "", "not-an-email", null, Set.of()));
+        service.submit("DK", danishRequest("aktiesparekonto", Set.of("terms", "kyc")));
+
+        List<OnboardingEvent> rejected = events.stream().filter(e -> e.outcome() == Outcome.REJECTED).toList();
+        assertEquals(List.of(
+                event("SE", StepType.REVIEW, Outcome.REJECTED, RejectionReason.IDENTITY_NOT_VERIFIED),
+                event("DK", StepType.REVIEW, Outcome.REJECTED, RejectionReason.CONFIRMATION_MISSING)), rejected);
+        assertEquals(2, events.stream().filter(e -> e.outcome() == Outcome.SUBMITTED).count());
+        // The ID check inside a submission is part of that rejection, not a separate ID_REJECTED.
+        assertTrue(events.stream().noneMatch(e -> e.outcome() == Outcome.ID_REJECTED));
+    }
+
+    private static OnboardingEvent event(String market, StepType step, Outcome outcome, RejectionReason reason) {
+        return new OnboardingEvent(market, step, outcome, reason);
     }
 
     private ApplicationRequest danishRequest(String product, Set<String> accepted) {
@@ -132,12 +187,20 @@ class OnboardingServiceTest {
 
     /** Midday UTC, so the date is the same in every market's time zone. */
     private static OnboardingService serviceOn(LocalDate date) {
-        return serviceAt(date.atTime(12, 0).toInstant(ZoneOffset.UTC));
+        return serviceOn(date, event -> { });
+    }
+
+    private static OnboardingService serviceOn(LocalDate date, OnboardingEvents events) {
+        return serviceAt(date.atTime(12, 0).toInstant(ZoneOffset.UTC), events);
     }
 
     private static OnboardingService serviceAt(Instant instant) {
+        return serviceAt(instant, event -> { });
+    }
+
+    private static OnboardingService serviceAt(Instant instant, OnboardingEvents events) {
         Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
         MarketRegistry registry = new MarketRegistry(List.of(new SwedenMarket(), new DenmarkMarket()), Set.of("SE", "DK"));
-        return new OnboardingService(registry, clock);
+        return new OnboardingService(registry, clock, events);
     }
 }

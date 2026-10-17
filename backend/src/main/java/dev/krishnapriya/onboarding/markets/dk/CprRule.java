@@ -2,6 +2,7 @@ package dev.krishnapriya.onboarding.markets.dk;
 
 import dev.krishnapriya.onboarding.domain.NationalIdResult;
 import dev.krishnapriya.onboarding.domain.NationalIdRule;
+import dev.krishnapriya.onboarding.domain.RejectionReason;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
@@ -44,7 +45,7 @@ public final class CprRule implements NationalIdRule {
     public NationalIdResult parse(String raw, LocalDate today) {
         Matcher m = FORMAT.matcher(raw.replace(" ", ""));
         if (!m.matches()) {
-            return NationalIdResult.invalid("Use the format DDMMYY-SSSS.");
+            return NationalIdResult.invalid(RejectionReason.ID_FORMAT, "Use the format DDMMYY-SSSS.");
         }
         int day = Integer.parseInt(m.group(1));
         int month = Integer.parseInt(m.group(2));
@@ -56,10 +57,10 @@ public final class CprRule implements NationalIdRule {
         try {
             birthDate = LocalDate.of(year, month, day);
         } catch (DateTimeException e) {
-            return NationalIdResult.invalid("The date part isn't a real date.");
+            return NationalIdResult.invalid(RejectionReason.ID_INVALID_DATE, "The date part isn't a real date.");
         }
         if (birthDate.isAfter(today)) {
-            return NationalIdResult.invalid("The date part is in the future.");
+            return NationalIdResult.invalid(RejectionReason.ID_FUTURE_DATE, "The date part is in the future.");
         }
         String normalized = m.group(1) + m.group(2) + m.group(3) + "-" + m.group(4) + m.group(5);
         return NationalIdResult.ok(normalized, birthDate);

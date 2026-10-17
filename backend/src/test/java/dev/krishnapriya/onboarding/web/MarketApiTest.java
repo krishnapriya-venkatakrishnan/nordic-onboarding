@@ -64,6 +64,7 @@ class MarketApiTest {
                         .content("{\"nationalId\":\"123\"}"))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.accepted").value(false))
-                .andExpect(jsonPath("$.errors[0].field").value("identity"));
+                .andExpect(jsonPath("$.errors[0].field").value("identity"))
+                .andExpect(jsonPath("$.errors[0].code").value("IDENTITY_NOT_VERIFIED"));
     }
 }

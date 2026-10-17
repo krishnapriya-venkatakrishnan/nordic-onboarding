@@ -1,4 +1,5 @@
 package dev.krishnapriya.onboarding.domain;
 
-public record FieldError(String field, String message) {
+/** A problem with one field: a code for counting, a message for the person. */
+public record FieldError(String field, RejectionReason code, String message) {
 }

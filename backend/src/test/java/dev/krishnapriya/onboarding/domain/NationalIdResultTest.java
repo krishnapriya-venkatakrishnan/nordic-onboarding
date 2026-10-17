@@ -20,8 +20,9 @@ class NationalIdResultTest {
 
     @Test
     void invalidResultCarriesOnlyTheReason() {
-        NationalIdResult bad = NationalIdResult.invalid("Bad format.");
+        NationalIdResult bad = NationalIdResult.invalid(RejectionReason.ID_FORMAT, "Bad format.");
         assertFalse(bad.valid());
+        assertEquals(RejectionReason.ID_FORMAT, bad.reason());
         assertEquals("Bad format.", bad.error());
     }
 
@@ -30,6 +31,7 @@ class NationalIdResultTest {
     void printingAResultNeverShowsTheIdNumber() {
         NationalIdResult ok = NationalIdResult.ok("19121212-1212", LocalDate.of(1912, 12, 12));
         assertEquals("NationalIdResult[valid]", ok.toString());
-        assertEquals("NationalIdResult[invalid: Bad format.]", NationalIdResult.invalid("Bad format.").toString());
+        assertEquals("NationalIdResult[invalid ID_FORMAT: Bad format.]",
+                NationalIdResult.invalid(RejectionReason.ID_FORMAT, "Bad format.").toString());
     }
 }

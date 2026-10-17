@@ -58,9 +58,16 @@ jobs:
       - if: failure()
         run: docker logs app
 
+  # The release script's logic (no traffic, smoke test, promote) against a fake gcloud.
+  release-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/deploy.test.sh
+
   # Green main ships: only after every check passes, and one deploy at a time.
   deploy:
-    needs: [backend, frontend, container]
+    needs: [backend, frontend, container, release-script]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     concurrency:

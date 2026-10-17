@@ -24,6 +24,10 @@ FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=api /api/target/onboarding-0.1.0.jar app.jar
 ENV PORT=8080
+# One JSON line per log event, in Cloud Logging's shape and with ID numbers masked. No banner,
+# since it isn't JSON. Running on a laptop (mvn spring-boot:run) stays readable text.
+ENV LOGGING_STRUCTURED_FORMAT_CONSOLE=dev.krishnapriya.onboarding.logging.CloudLoggingFormat
+ENV SPRING_MAIN_BANNER_MODE=off
 EXPOSE 8080
 # Not root, so a compromised app can't modify the image or anything else it doesn't own.
 USER 1000

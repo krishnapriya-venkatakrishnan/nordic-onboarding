@@ -55,6 +55,8 @@ jobs:
           uid=$(docker exec app id -u)
           echo "runs as uid $uid"
           test "$uid" -ne 0
+      - name: Logs are JSON that Cloud Logging can read
+        run: docker logs app 2>/dev/null | jq -e -s 'length > 0 and all(.[]; .severity and .message)'
       - if: failure()
         run: docker logs app
 

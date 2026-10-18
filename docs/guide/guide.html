@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Nordic Onboarding: a technical guide</title>
+    <!-- The app's own Inter font files, so the guide matches it. Built by scripts/build-guide.mjs. -->
+    <link rel="stylesheet" href="../../frontend/node_modules/@fontsource-variable/inter/index.css" />
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <!-- Cover -->
+    <section class="sheet cover">
+      <span class="mark"></span>
+      <h1>Nordic Onboarding</h1>
+      <p class="subtitle">A technical guide</p>
+      <p class="lead pitch">
+        Account opening for a Nordic savings and investment platform that launches in a second
+        country without forking the code. Sweden and Denmark use one onboarding flow, and
+        everything that is different between them lives in a market module.
+      </p>
+      <div class="meta">
+        <span class="eyebrow">Snapshot: October 2026</span>
+        <span class="eyebrow"
+          ><a href="https://nordic-onboarding-988672425651.europe-north1.run.app"
+            >Live demo</a
+          ></span
+        >
+        <span class="eyebrow"
+          ><a href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding"
+            >Source on GitHub</a
+          ></span
+        >
+      </div>
+      <figure>
+        <img src="../denmark-account-type.png" alt="The app in Denmark, on the account type step" />
+      </figure>
+      <div class="folio">
+        <span>A personal portfolio project, not connected to any bank. Rules are illustrative.</span>
+        <span></span>
+      </div>
+    </section>
+
+    <!-- Contents -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Contents</span>
+      </div>
+      <h2>Contents</h2>
+      <ol class="contents">
+        <li>
+          <span class="num">1</span>
+          <span class="title"
+            >Data flow
+            <span class="what"
+              >One Danish application, from the click in the browser to the server's answer and
+              back.</span
+            ></span
+          >
+          <span class="page">page 3</span>
+        </li>
+        <li class="soon">
+          <span class="num">2</span>
+          <span class="title"
+            >Architecture
+            <span class="what">The layers, and why each boundary exists.</span></span
+          >
+          <span class="page">in progress</span>
+        </li>
+        <li class="soon">
+          <span class="num">3</span>
+          <span class="title"
+            >Delivery <span class="what">From git push to traffic on a new version.</span></span
+          >
+          <span class="page">in progress</span>
+        </li>
+        <li class="soon">
+          <span class="num">4</span>
+          <span class="title"
+            >Cloud
+            <span class="what"
+              >What runs where in Google Cloud, and who is allowed to do what.</span
+            ></span
+          >
+          <span class="page">in progress</span>
+        </li>
+        <li class="soon">
+          <span class="num">5</span>
+          <span class="title"
+            >Observability <span class="what">From a log line to an alert email.</span></span
+          >
+          <span class="page">in progress</span>
+        </li>
+      </ol>
+
+      <div class="card" style="margin-top: 9mm">
+        <h3 style="margin-top: 0">How to read this guide</h3>
+        <p>
+          Each chapter starts with a short summary and one diagram, so reading only the first page
+          of each chapter already gives the whole picture. The pages after that go into detail.
+        </p>
+        <p>
+          The rounded links marked <strong>Where to look</strong> open the matching code on
+          GitHub. Every endpoint, message and JSON body in this guide is taken from the code or
+          from the live demo's answers.
+        </p>
+      </div>
+      <div class="note">
+        <strong>What is simulated.</strong> The eID login (BankID, MitID) is simulated, nothing a
+        customer enters is stored or sent anywhere, and the product rules are simplified examples,
+        not legal or tax text.
+      </div>
+      <div class="folio"><span>Nordic Onboarding · A technical guide</span><span>2</span></div>
+    </section>
+
+    <!-- Chapter 1, page 1: summary and the whole journey -->
+    <section class="sheet" id="chapter-1">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Chapter 1</span>
+      <h1>Data flow</h1>
+      <p class="chapter-sub">One Danish application, end to end</p>
+      <div class="card">
+        <p class="lead">
+          This chapter follows one Danish account application from the click in the browser to
+          the server's answer and back. Sweden takes exactly the same path through the same code.
+          Only the market's data and its ID-number rule are different.
+        </p>
+        <p class="lead">
+          Four kinds of API call make up the journey. The browser checks what it can, for speed.
+          The server checks everything again at the end, because anyone can skip the browser and
+          send requests to the server directly.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant B as Browser (Angular app)
+  participant A as REST API (MarketController)
+  participant S as OnboardingService
+  B->>A: GET /api/markets
+  A-->>B: 200 the live markets, SE and DK
+  B->>A: GET /api/markets/DK/onboarding
+  A->>S: config(DK)
+  A-->>B: 200 Denmark's whole flow, as data
+  B->>A: POST /api/markets/DK/identity/sessions
+  A->>S: startIdentitySession(DK)
+  A-->>B: 200 a session id. Event VERIFIED
+  Note over B,S: Once the CPR number is complete, and again after each change
+  B->>A: POST /api/markets/DK/national-id/check
+  A->>S: checkNationalId(DK, value)
+  A-->>B: 200 valid, or a message
+  B->>A: POST /api/markets/DK/applications
+  A->>S: submit(DK, application)
+  A-->>B: 201 accepted, or 422 with reasons
+        </pre>
+        <figcaption>
+          The whole journey. Each arrow to the right is one request from the browser; the
+          service does the work and the controller only speaks HTTP.
+        </figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>3</span></div>
+    </section>
+
+    <!-- Chapter 1, page 2: the calls and the answer codes -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>The four calls</h2>
+      <div class="card">
+        <ol class="checks">
+          <li>
+            <span><strong>Load Denmark:</strong> <code>GET /api/markets</code>, then
+            <code>GET /api/markets/DK/onboarding</code></span>
+          </li>
+          <li>
+            <span><strong>Verify identity:</strong>
+            <code>POST /api/markets/DK/identity/sessions</code></span>
+          </li>
+          <li>
+            <span><strong>Check the CPR number:</strong>
+            <code>POST /api/markets/DK/national-id/check</code></span>
+          </li>
+          <li>
+            <span><strong>Open the account:</strong>
+            <code>POST /api/markets/DK/applications</code></span>
+          </li>
+        </ol>
+        <p>
+          The market code is part of every URL, so every market uses the same endpoints and the
+          same controller. For Sweden, the same four calls use <code>SE</code> instead of
+          <code>DK</code>: <code>GET /api/markets/SE/onboarding</code>, and so on. The same code
+          handles them, and <code>MarketRegistry</code> hands it Sweden's rules instead of
+          Denmark's. There is no Sweden-only or Denmark-only endpoint.
+        </p>
+      </div>
+
+      <h2>What the answers mean</h2>
+      <div class="card">
+        <dl class="codes">
+          <dt>200 OK</dt>
+          <dd>The data that was asked for: the markets, a market's configuration, an ID check.</dd>
+          <dt>201 Created</dt>
+          <dd>The application was accepted.</dd>
+          <dt>422 Unprocessable</dt>
+          <dd>The application was rejected. The body lists the reasons, in the order of the flow.</dd>
+          <dt>404 Not Found</dt>
+          <dd>The market is switched off, or doesn't exist. Both look exactly the same.</dd>
+        </dl>
+      </div>
+      <p class="small">A 404 is a standard problem detail (RFC 9457), from the live demo:</p>
+      <pre>{ <span class="k">"title"</span>: "Not Found", <span class="k">"status"</span>: 404, <span class="k">"detail"</span>: "Market not available: NO",
+  <span class="k">"instance"</span>: "/api/markets/NO/onboarding" }</pre>
+      <div class="note">
+        A rejected application answers <strong>422, not an error.</strong> A rejection is a
+        normal outcome, so its body is ordinary data that the browser shows as a list, with a link
+        from each reason back to the step that fixes it.
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>4</span></div>
+    </section>
+
+    <!-- Chapter 1, page 3: loading Denmark -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>Loading Denmark: the screens come from configuration</h2>
+      <p>
+        The browser loads the Angular app from the same server, or from the service worker's
+        cache on a repeat visit. The service worker is a small script the browser installs for
+        this site. It keeps a copy of the app's files on the person's device, but never the API's
+        answers.
+      </p>
+      <p>
+        The app asks which markets are live with <code>GET /api/markets</code>, and draws the
+        Sweden/Denmark switch from the answer. A link ending in <code>#dk</code> picks Denmark,
+        and <code>GET /api/markets/DK/onboarding</code> returns the whole flow as data:
+      </p>
+      <pre>{ <span class="k">"code"</span>: "DK", <span class="k">"displayName"</span>: "Denmark", <span class="k">"locale"</span>: "da-DK", <span class="k">"currency"</span>: "DKK",
+  <span class="k">"identityProvider"</span>: { <span class="k">"id"</span>: "mitid", <span class="k">"displayName"</span>: "MitID" },
+  <span class="k">"nationalId"</span>: { <span class="k">"label"</span>: "CPR number", <span class="k">"placeholder"</span>: "DDMMYY-SSSS",
+                  <span class="k">"pattern"</span>: "^\\d{6}-?\\d{4}$", <span class="k">"example"</span>: "121285-1234" },
+  <span class="k">"minimumAge"</span>: 18,
+  <span class="k">"steps"</span>: ["IDENTITY", "PERSONAL_DETAILS", "ACCOUNT_TYPE", "DISCLOSURES", "REVIEW"],
+  <span class="k">"products"</span>: [
+    { <span class="k">"id"</span>: "aktiesparekonto", <span class="k">"depositCap"</span>: 174200, <span class="k">"onePerPerson"</span>: true, <span class="c">…</span> },
+    { <span class="k">"id"</span>: "depot", <span class="k">"depositCap"</span>: null, <span class="k">"onePerPerson"</span>: false, <span class="c">…</span> } ],
+  <span class="k">"disclosures"</span>: [
+    { <span class="k">"id"</span>: "terms", <span class="k">"productId"</span>: null, <span class="k">"required"</span>: true, <span class="c">…</span> },
+    { <span class="k">"id"</span>: "ask-tax-liable", <span class="k">"productId"</span>: "aktiesparekonto", <span class="k">"required"</span>: true, <span class="c">…</span> }, <span class="c">…</span> ] }</pre>
+      <p class="small" style="margin-top: -1.5mm">
+        Trimmed from the live answer: some fields and confirmations are left out.
+      </p>
+      <div class="cols">
+        <div>
+          <h3>The deposit cap is data, too</h3>
+          <p>
+            Aktiesparekonto's yearly cap is looked up for the current year in Copenhagen time:
+            174,200 DKK in 2026. A new year's cap is one more entry in a map, not new code.
+          </p>
+          <h3>No Danish code in the app</h3>
+          <p>The Angular app shows what the configuration describes, for any market.</p>
+        </div>
+        <div>
+          <h3>When the market can't be loaded</h3>
+          <div class="err">
+            <strong>"Couldn't reach the server. Check your connection and try again."</strong>
+            The server didn't answer at all: no internet, or the server is down.
+          </div>
+          <div class="err">
+            <strong>"This market isn't available right now."</strong> The server answered 404,
+            because the market was switched off after the page loaded.
+          </div>
+          <p class="small">Choosing another market clears the message and shows that market.</p>
+        </div>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java"
+          >DenmarkMarket.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/frontend/src/app/onboarding/onboarding-flow.ts"
+          >onboarding-flow.ts</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>5</span></div>
+    </section>
+
+    <!-- Chapter 1, page 4: step 1 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 1</span>
+      <h2 style="margin-top: 3mm">Verify identity, with simulated MitID</h2>
+      <p>
+        "Continue with MitID" sends <code>POST /api/markets/DK/identity/sessions</code>.
+        <strong>Session</strong> here means an eID login session on the server, not a browser
+        session or a cookie, and this call <em>is</em> the identity check, simulated. In a real
+        system the person would sign in at MitID, and MitID would send back a signed proof for the
+        server to verify. Here, the call pretends that succeeded.
+      </p>
+      <p>
+        The server creates a session id, remembers in memory that it belongs to Denmark, records
+        a <code>VERIFIED</code> event, and answers:
+      </p>
+      <pre>{ <span class="k">"sessionId"</span>: "sim-mitid-ccebc1b9-2b1a-4a9e-9407-abe52dfb0fd9" }</pre>
+      <div class="cols">
+        <div>
+          <h3 style="margin-top: 0">What the id is for</h3>
+          <p>
+            It is the proof of login. The browser keeps it in memory and sends it with the
+            application. The server then checks that it exists and belongs to Denmark, and
+            deletes it once an application is accepted.
+          </p>
+        </div>
+        <div>
+          <h3 style="margin-top: 0">Why it can disappear</h3>
+          <p>
+            It lives in the server's memory. A restart or a new release forgets it, and the
+            person is asked to log in again. That is also why the service runs one instance.
+          </p>
+        </div>
+      </div>
+      <figure style="margin-top: 3mm">
+        <img src="images/ch1-1-mitid-verified.png" alt="The identity step after a successful MitID login" />
+        <figcaption>Step 1: the simulated MitID login has succeeded.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>6</span></div>
+    </section>
+
+    <!-- Chapter 1, page 5: step 2 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 2</span>
+      <h2 style="margin-top: 3mm">The CPR number is checked twice</h2>
+      <figure class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  K["Keystroke"] --> F{"Complete<br/>format?"}
+  F -- "yes" --> W["Wait 350 ms"]
+  W --> C["Server check<br/>CprRule + age"]
+  C --> M["Looks good.<br/>or the reason"]
+  F -- "not yet" --> H["A hint only<br/>no server call"]
+        </pre>
+        <figcaption>
+          The browser only checks the format. While the number is incomplete it shows the demo
+          test number as a hint, and "Use the format DDMMYY-SSSS." once the field is left. During
+          the server check it shows "Checking…".
+        </figcaption>
+      </figure>
+      <div class="cols cols--side">
+        <div>
+          <p>
+            <strong>In the browser,</strong> the format pattern from the configuration is checked
+            on every keystroke, for instant feedback. Only when the field holds a complete number
+            in the right format, and 350 ms after the last keystroke, does the browser ask the
+            server. It doesn't wait for the person to leave the field. A new keystroke cancels a
+            check that is still waiting, and the same number is never sent twice.
+          </p>
+          <p>
+            <strong>On the server,</strong> Denmark's <code>CprRule</code> reads the number: the
+            format, the century from the 7th digit, a real date, and not a date in the future. It
+            deliberately has no modulus-11 check, an old checksum for CPR numbers. Denmark stopped
+            guaranteeing it in 2007, so the check would reject real people.
+          </p>
+          <p>
+            Then comes the <strong>shared rule</strong>, written once for every market: the person
+            must be at least 18 on today's date in Copenhagen.
+          </p>
+          <pre>{ <span class="k">"valid"</span>: false,
+  <span class="k">"message"</span>: "You must be at least 18 to open an account yourself." }</pre>
+          <p class="small">
+            Each rejection records an <code>ID_REJECTED</code> event with a reason code, such as
+            <code>ID_UNDER_AGE</code>.
+          </p>
+          <p class="look">
+            Where to look:
+            <a
+              href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/CprRule.java"
+              >CprRule.java</a
+            >
+          </p>
+        </div>
+        <figure>
+          <img src="images/ch1-2-phone-age-rule.png" alt="On a phone, the age rule shown under the CPR field" />
+          <figcaption>On a phone: the server's age rule answers while the person types.</figcaption>
+        </figure>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>7</span></div>
+    </section>
+
+    <!-- Chapter 1: steps 3 and 4 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Steps 3 and 4</span>
+      <h2 style="margin-top: 3mm">Account type and confirmations</h2>
+      <p>
+        The account type is chosen in the browser, from the configuration: Aktiesparekonto or
+        Depot. No call is needed, because the configuration already holds both, with this year's
+        deposit cap.
+      </p>
+      <p>
+        Aktiesparekonto adds two confirmations, marked <strong>For this account</strong>: "I don't
+        already hold an Aktiesparekonto with another bank" and "I am fully tax liable to Denmark".
+        Switching account type drops confirmations that no longer apply, and Continue stays
+        disabled until every required one is ticked.
+      </p>
+      <div class="cols" style="margin-top: 4mm">
+        <figure>
+          <img src="images/ch1-2-account-type.png" alt="The account types offered in Denmark" />
+          <figcaption>Step 3: the account types offered in Denmark, with this year's deposit cap.</figcaption>
+        </figure>
+        <figure>
+          <img src="images/ch1-3-confirmations.png" alt="The confirmations step for an Aktiesparekonto" />
+          <figcaption>Step 4: the last two confirmations appear only because Aktiesparekonto was chosen.</figcaption>
+        </figure>
+      </div>
+      <div class="note">
+        Which confirmations a market asks for, and which ones belong to a single account type, is
+        data in the market module. The confirmation screen has no Danish code.
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>8</span></div>
+    </section>
+
+    <!-- Chapter 1: step 5 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 5</span>
+      <h2 style="margin-top: 3mm">"Open account"</h2>
+      <p>The browser sends <code>POST /api/markets/DK/applications</code> with:</p>
+      <pre>{ <span class="k">"identitySessionId"</span>: "sim-mitid-ccebc1b9-…",
+  <span class="k">"nationalId"</span>: "121285-1234",
+  <span class="k">"fullName"</span>: "Freja Jensen",
+  <span class="k">"email"</span>: "freja@example.com",
+  <span class="k">"productId"</span>: "aktiesparekonto",
+  <span class="k">"acceptedDisclosures"</span>: ["terms", "kyc", "ask-one-per-person", "ask-tax-liable"] }</pre>
+      <p>
+        Everything the browser checked along the way, it checked for speed. The server now checks
+        all of it again.
+      </p>
+      <figure>
+        <img src="images/ch1-4-review.png" alt="The review step before the application is sent" />
+        <figcaption>Step 5: the review before the application is sent.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>9</span></div>
+    </section>
+
+    <!-- Chapter 1: on the server -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>On the server</h2>
+      <figure class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  CR["Cloud Run<br/>europe-north1"] --> MC["MarketController<br/>HTTP only"]
+  MC --> OS["OnboardingService<br/>shared rules"]
+  OS --> MR["MarketRegistry<br/>404 if DK is off"]
+  MR --> DM["DenmarkMarket<br/>+ CprRule"]
+  OS -.-> EV["Events<br/>codes only"]
+        </pre>
+      </figure>
+      <div class="cols">
+        <div>
+          <p>
+            The request passes through layers that each have one job. The controller only speaks
+            HTTP. <code>OnboardingService</code> holds the rules every market shares.
+            <code>MarketRegistry</code> turns <code>DK</code> into Denmark's market module, or
+            answers 404 if Denmark is switched off. The market module supplies Denmark's data and
+            its ID rule.
+          </p>
+          <p class="look">
+            Where to look:
+            <a
+              href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/domain/OnboardingService.java"
+              >OnboardingService.java</a
+            >
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">The checks, in the order of the flow</h3>
+          <ol class="checks">
+            <li><span>The identity session exists and belongs to Denmark.</span></li>
+            <li><span>The CPR number is valid, and the person is at least 18.</span></li>
+            <li><span>A full name is given.</span></li>
+            <li><span>The email address is valid.</span></li>
+            <li><span>The account type is offered in Denmark.</span></li>
+            <li><span>Every confirmation required for that account type is accepted.</span></li>
+          </ol>
+          <p class="small">
+            Events: <code>SUBMITTED</code>, then either <code>ACCEPTED</code>, or
+            <code>REJECTED</code> with the first failed check as its reason.
+          </p>
+        </div>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>10</span></div>
+    </section>
+
+    <!-- Chapter 1: the answer -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>The answer, and back in the browser</h2>
+      <div class="cols">
+        <div class="ok">
+          <strong>201 Created: accepted.</strong> The login session is deleted, so the same login
+          can't open a second account.
+          <pre>{ <span class="k">"accepted"</span>: true,
+  <span class="k">"applicationId"</span>: "APP-00A6D5F4",
+  <span class="k">"marketCode"</span>: "DK",
+  <span class="k">"productId"</span>: "aktiesparekonto",
+  <span class="k">"currency"</span>: "DKK",
+  <span class="k">"errors"</span>: [] }</pre>
+        </div>
+        <div class="err">
+          <strong>422: rejected,</strong> with the reasons in the order of the flow. Each one links
+          back to its step. An identity error asks for a new MitID login.
+          <pre>{ <span class="k">"accepted"</span>: false, <span class="c">…</span>
+  <span class="k">"errors"</span>: [ {
+    <span class="k">"field"</span>: "nationalId",
+    <span class="k">"code"</span>: "ID_UNDER_AGE",
+    <span class="k">"message"</span>: "You must be at least 18
+      to open an account yourself." } ] }</pre>
+        </div>
+      </div>
+      <figure>
+        <img src="images/ch1-5-done.png" alt="The done screen: Application accepted" />
+        <figcaption>
+          Accepted: the browser shows the reference, account, market and currency, with a clear
+          note that nothing was opened or saved.
+        </figcaption>
+      </figure>
+      <div class="cols">
+        <p class="small">
+          <strong>Network failure during the submit:</strong> the browser shows "Something went
+          wrong. Please try again."
+        </p>
+        <p class="small">
+          <strong>Switching market while a request is waiting</strong> cancels it in the browser,
+          so Sweden's screen never receives Denmark's answer. The server may already have handled
+          it, but nothing is stored either way.
+        </p>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>11</span></div>
+    </section>
+
+    <!-- Chapter 1: limits and design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>What this path never does</h2>
+      <div class="cols" style="grid-template-columns: 1fr 1fr 1fr; gap: 4mm; align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">Stores nothing</h3>
+          <p>There is no database. The login session lives only in the server's memory.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">Logs no personal data</h3>
+          <p>
+            Events carry codes only: market, step, outcome, reason. Anything that looks like an ID
+            number is masked in every log line.
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">Caches no API answer</h3>
+          <p>
+            The service worker keeps the app itself, never market configuration, so a switched-off
+            market can't be shown from a cache.
+          </p>
+        </div>
+      </div>
+      <div class="note">
+        <strong>What this does not catch: duplicates.</strong> The same person can log in again
+        and apply again. With no database, nothing remembers earlier applications, and "one
+        Aktiesparekonto per person" is only a confirmation the person ticks. A real system would
+        check its customer records.
+      </div>
+
+      <h2 style="margin-top: 7mm">Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why check the ID number on the server if the browser already checks it?</dt>
+          <dd>
+            The browser only checks the format, for speed. The real rule needs today's date and the
+            shared age policy, and any client can skip the browser's checks entirely, for example
+            with curl.
+          </dd>
+          <dt>Why answer a rejected application with 422 instead of an error?</dt>
+          <dd>
+            A rejection is a normal outcome, not a failure. The body carries the field errors, so
+            the browser treats them as data and links each one to its step.
+          </dd>
+          <dt>Why is the market code in the URL?</dt>
+          <dd>
+            One controller serves every market. The registry turns the code into a market, or into
+            a 404 if that market is switched off.
+          </dd>
+          <dt>What happens if Denmark is switched off in the middle of an application?</dt>
+          <dd>
+            Every later Danish call answers 404. If the next one is the submit, the browser shows
+            "Something went wrong. Please try again." The login session is gone too, because
+            switching a market off starts a new revision of the service with empty memory.
+          </dd>
+        </dl>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span>12</span></div>
+    </section>
+
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+
+      // Diagram colours follow the app: white boxes, slate-blue lines, Inter.
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        fontFamily: '"Inter Variable", Inter, sans-serif',
+        themeVariables: {
+          fontFamily: '"Inter Variable", Inter, sans-serif',
+          fontSize: '13px',
+          primaryColor: '#ffffff',
+          primaryTextColor: '#1c2230',
+          primaryBorderColor: '#4a5a86',
+          lineColor: '#4a5a86',
+          secondaryColor: '#e6eaf3',
+          tertiaryColor: '#f4f6fa',
+          actorBkg: '#ffffff',
+          actorBorder: '#4a5a86',
+          actorTextColor: '#1c2230',
+          actorLineColor: '#c9d0dc',
+          signalColor: '#4a5a86',
+          signalTextColor: '#1c2230',
+          labelBoxBkgColor: '#e6eaf3',
+          labelBoxBorderColor: '#e6eaf3',
+          labelTextColor: '#4a5a86',
+          loopTextColor: '#4a5a86',
+          sequenceNumberColor: '#ffffff',
+          edgeLabelBackground: '#ffffff',
+          noteBkgColor: '#e6eaf3',
+          noteBorderColor: '#e6eaf3',
+          noteTextColor: '#4a5a86',
+        },
+        sequence: { mirrorActors: false, messageMargin: 26, boxMargin: 8 },
+        flowchart: { curve: 'basis', padding: 12, nodeSpacing: 26, rankSpacing: 32 },
+      });
+      // The build script waits for guideReady, and stops with guideError if a diagram is wrong.
+      try {
+        await document.fonts.ready;
+        await mermaid.run({ querySelector: '.mermaid' });
+        await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
+        window.guideReady = true;
+      } catch (e) {
+        window.guideError = String(e?.message ?? e);
+      }
+    </script>
+  </body>
+</html>

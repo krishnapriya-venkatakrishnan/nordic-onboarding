@@ -11,6 +11,8 @@ This is the account opening flow for a Nordic savings and investment platform th
 **Stack:** Angular 21 (standalone components, signals, installable PWA) · Java 25 / Spring Boot 4.1 · GitHub Actions · Google Cloud Run · Cloud Logging and Monitoring
 
 > **Reviewing the code? Start with these five files (about 5 minutes):** [`Market.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/Market.java) (the contract every market plugs into) → [`DenmarkMarket.java`](backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java) (Denmark's data in one file, with its ID rule next to it) → [`OnboardingService.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/OnboardingService.java) (the shared rules, written once) → [`MarketContractTest.java`](backend/src/test/java/dev/krishnapriya/onboarding/domain/MarketContractTest.java) (what every new market must pass) → [`onboarding-flow.ts`](frontend/src/app/onboarding/onboarding-flow.ts) (the screens, with no country-specific code)
+>
+> Want the long version? **[The technical guide (PDF, 41 pages)](docs/nordic-onboarding-guide.pdf)**, chapter by chapter, with diagrams and real API answers.
 
 ## The problem
 

@@ -1,4 +1,38 @@
 /* The guide uses the app's own design tokens (frontend/src/styles.css), so it looks like the app. */
+/* Inter's static files, the app's typeface. The variable files the app uses make PDF text copy
+   apart in Preview ("t he", "ru ns"), so the printed guide uses one file per weight instead. */
+@font-face {
+  font-family: 'Inter';
+  font-weight: 300;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-300-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-500-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-600-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 700;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-700-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.8/files/inter-latin-400-italic.woff2) format('woff2');
+}
+
 :root {
   --bg-top: #f4f6fa;
   --bg-bottom: #d9dfea;
@@ -18,7 +52,7 @@
   --radius-sm: 3.5mm;
   /* Blurred shadows print as dark smudges, so cards get a hairline border instead. */
   --edge: 1px solid #e1e6ee;
-  --sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
@@ -135,13 +169,16 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
+/* The label's box is drawn with a shadow ring, not wide padding and a border: those make Preview
+   copy a line's words out of order, as if each label started a new column. Same look either way. */
 code {
   font-family: var(--mono);
   font-size: 0.86em;
   background: var(--quiet);
-  border: 1px solid var(--line);
   border-radius: 1.4mm;
-  padding: 0 1mm;
+  padding: 0 0.4mm;
+  margin: 0 0.5mm;
+  box-shadow: 0 0 0 0.6mm var(--quiet), 0 0 0 calc(0.6mm + 1px) var(--line);
 }
 .eyebrow {
   display: inline-block;
@@ -392,11 +429,15 @@ figcaption {
   margin: 0;
 }
 .contents li {
+  border-bottom: 1px solid var(--line);
+}
+/* Each entry is a link to its chapter, so the contents work as navigation in the PDF. */
+.contents a {
+  color: inherit;
   display: grid;
   grid-template-columns: 12mm 1fr 18mm;
   align-items: baseline;
   padding: 3.4mm 0;
-  border-bottom: 1px solid var(--line);
 }
 .contents li:last-child {
   border-bottom: 0;
@@ -423,4 +464,42 @@ figcaption {
 .contents .soon .title,
 .contents .soon .num {
   color: var(--ink-3);
+}
+
+/* Chapter 2: the boundaries and the frontend's layers, as label-and-text rows. */
+.boundaries dl,
+.layers {
+  display: grid;
+  grid-template-columns: 38mm 1fr;
+  gap: 3mm 5mm;
+  margin: 0;
+}
+.boundaries dt,
+.layers dt {
+  font-weight: 600;
+  color: var(--accent);
+}
+.boundaries dd,
+.layers dd {
+  margin: 0;
+}
+.boundaries dd p {
+  margin: 0 0 1mm;
+}
+.layers dt code {
+  display: block;
+  margin-top: 1mm;
+  font-weight: 400;
+  width: fit-content;
+}
+.boundaries--wide dl {
+  grid-template-columns: 50mm 1fr;
+}
+.boundaries dt code {
+  white-space: nowrap;
+}
+/* A diagram that shares its page with a table. */
+.diagram--medium svg {
+  max-height: 66mm;
+  width: auto;
 }

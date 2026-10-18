@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prints docs/guide/guide.html to docs/nordic-onboarding-guide.pdf with headless Chrome, after
-// its diagrams and fonts have loaded. Needs Google Chrome and the frontend's node_modules (the
-// guide uses the app's own Inter font files). Usage: node scripts/build-guide.mjs [in.html out.pdf]
+// its diagrams and fonts have loaded. Needs Google Chrome and an internet connection (the fonts and
+// Mermaid come from a CDN). Usage: node scripts/build-guide.mjs [in.html out.pdf]
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -60,7 +60,10 @@ try {
   // Each page is a fixed A4 sheet, so content that doesn't fit would be cut off silently.
   const problems = await evaluate(`(() => {
     const out = [];
-    if (!document.fonts.check('12px "Inter Variable"')) out.push('Inter did not load: run npm ci in frontend/');
+    if (![...document.fonts].some((f) => f.family === 'Inter' && f.status === 'loaded')) out.push('Inter did not load');
+    document.querySelectorAll('a[href^="#"]').forEach((a) => {
+      if (!document.getElementById(a.getAttribute('href').slice(1))) out.push('broken link: ' + a.getAttribute('href'));
+    });
     document.querySelectorAll('img').forEach((img) => {
       if (!img.naturalWidth) out.push('missing image: ' + img.getAttribute('src'));
     });
@@ -79,7 +82,13 @@ try {
     console.warn(report);
   }
 
-  const pdf = await send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
+  // The outline gives PDF viewers a sidebar of chapters; tagging helps screen readers.
+  const pdf = await send('Page.printToPDF', {
+    printBackground: true,
+    preferCSSPageSize: true,
+    generateDocumentOutline: true,
+    generateTaggedPDF: true,
+  });
   if (!pdf.result?.data) throw new Error(`Printing failed: ${JSON.stringify(pdf.error ?? pdf)}`);
   writeFileSync(output, Buffer.from(pdf.result.data, 'base64'));
   console.log(`wrote ${output}`);

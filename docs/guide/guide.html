@@ -1,0 +1,2358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Nordic Onboarding: a technical guide</title>
+    <!-- Built by scripts/build-guide.mjs. The fonts and Mermaid load from a CDN, pinned versions. -->
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <!-- Cover -->
+    <section class="sheet cover">
+      <span class="mark"></span>
+      <h1>Nordic Onboarding</h1>
+      <p class="subtitle">A technical guide</p>
+      <p class="lead pitch">
+        Account opening for a Nordic savings and investment platform that launches in a second
+        country without forking the code. Sweden and Denmark use one onboarding flow, and
+        everything that is different between them lives in a market module: one folder of plain
+        Java per country.
+      </p>
+      <div class="meta">
+        <span class="eyebrow">Snapshot: October 2026</span>
+        <span class="eyebrow"
+          ><a href="https://nordic-onboarding-988672425651.europe-north1.run.app"
+            >Live demo</a
+          ></span
+        >
+        <span class="eyebrow"
+          ><a href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding"
+            >Source on GitHub</a
+          ></span
+        >
+      </div>
+      <figure>
+        <img src="../denmark-account-type.png" alt="The app in Denmark, on the account type step" />
+      </figure>
+      <div class="folio">
+        <span>A personal portfolio project, not connected to any bank. Rules are illustrative.</span>
+        <span></span>
+      </div>
+    </section>
+
+    <!-- Contents -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Contents</span>
+      </div>
+      <h2>Contents</h2>
+      <ol class="contents">
+        <li>
+          <a href="#chapter-1">
+          <span class="num">1</span>
+          <span class="title"
+            >Data flow
+            <span class="what"
+              >One Danish application, from the click in the browser to the server's answer and
+              back.</span
+            ></span
+          >
+          <span class="page" data-page-of="chapter-1"></span>
+          </a>
+        </li>
+        <li>
+          <a href="#chapter-2">
+          <span class="num">2</span>
+          <span class="title"
+            >Architecture
+            <span class="what">The layers, and why each boundary exists.</span></span
+          >
+          <span class="page" data-page-of="chapter-2"></span>
+          </a>
+        </li>
+        <li>
+          <a href="#chapter-3">
+          <span class="num">3</span>
+          <span class="title"
+            >Delivery <span class="what">From git push to traffic on a new version.</span></span
+          >
+          <span class="page" data-page-of="chapter-3"></span>
+          </a>
+        </li>
+        <li>
+          <a href="#chapter-4">
+          <span class="num">4</span>
+          <span class="title"
+            >Cloud
+            <span class="what"
+              >What runs where in Google Cloud, and who is allowed to do what.</span
+            ></span
+          >
+          <span class="page" data-page-of="chapter-4"></span>
+          </a>
+        </li>
+        <li>
+          <a href="#chapter-5">
+          <span class="num">5</span>
+          <span class="title"
+            >Observability <span class="what">From a log line to an alert email.</span></span
+          >
+          <span class="page" data-page-of="chapter-5"></span>
+          </a>
+        </li>
+      </ol>
+
+      <div class="card" style="margin-top: 9mm">
+        <h3 style="margin-top: 0">How to read this guide</h3>
+        <p>
+          Each chapter starts with a short summary and one diagram, so reading only the first page
+          of each chapter already gives the whole picture. The pages after that go into detail.
+        </p>
+        <p>
+          The rounded links marked <strong>Where to look</strong> open the matching code on
+          GitHub. Every endpoint, message and JSON body in this guide is taken from the code or
+          from the live demo's answers.
+        </p>
+      </div>
+      <div class="note">
+        <strong>What is simulated.</strong> The eID login (BankID, MitID) is simulated, nothing a
+        customer enters is stored or sent anywhere, and the product rules are simplified examples,
+        not legal or tax text.
+      </div>
+      <div class="folio"><span>Nordic Onboarding · A technical guide</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1, page 1: summary and the whole journey -->
+    <section class="sheet" id="chapter-1">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Chapter 1</span>
+      <h1>Data flow</h1>
+      <p class="chapter-sub">One Danish application, end to end</p>
+      <div class="card">
+        <p class="lead">
+          This chapter follows one Danish account application from the click in the browser to
+          the server's answer and back. Sweden takes exactly the same path through the same code.
+          Only the market's data and its ID-number rule are different.
+        </p>
+        <p class="lead">
+          Four kinds of API call make up the journey. The browser checks what it can, for speed.
+          The server checks everything again at the end, because anyone can skip the browser and
+          send requests to the server directly.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant B as Browser (Angular app)
+  participant A as REST API (MarketController)
+  participant S as OnboardingService
+  B->>A: GET /api/markets
+  A-->>B: 200 the live markets, SE and DK
+  B->>A: GET /api/markets/DK/onboarding
+  A->>S: config(DK)
+  A-->>B: 200 Denmark's whole flow, as data
+  B->>A: POST /api/markets/DK/identity/sessions
+  A->>S: startIdentitySession(DK)
+  A-->>B: 200 a session id. Event VERIFIED
+  Note over B,S: Once the CPR number is complete, and again after each change
+  B->>A: POST /api/markets/DK/national-id/check
+  A->>S: checkNationalId(DK, value)
+  A-->>B: 200 valid, or a message
+  B->>A: POST /api/markets/DK/applications
+  A->>S: submit(DK, application)
+  A-->>B: 201 accepted, or 422 with reasons
+        </pre>
+        <figcaption>
+          The whole journey. Each arrow to the right is one request from the browser; the
+          service does the work and the controller only speaks HTTP.
+        </figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1, page 2: the calls and the answer codes -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>The four calls</h2>
+      <div class="card">
+        <ol class="checks">
+          <li>
+            <span><strong>Load Denmark:</strong> <code>GET /api/markets</code>, then
+            <code>GET /api/markets/DK/onboarding</code></span>
+          </li>
+          <li>
+            <span><strong>Verify identity:</strong>
+            <code>POST /api/markets/DK/identity/sessions</code></span>
+          </li>
+          <li>
+            <span><strong>Check the CPR number:</strong>
+            <code>POST /api/markets/DK/national-id/check</code></span>
+          </li>
+          <li>
+            <span><strong>Open the account:</strong>
+            <code>POST /api/markets/DK/applications</code></span>
+          </li>
+        </ol>
+        <p>
+          The market code is part of every URL, so every market uses the same endpoints and the
+          same controller. For Sweden, the same four calls use <code>SE</code> instead of
+          <code>DK</code>: <code>GET /api/markets/SE/onboarding</code>, and so on. The same code
+          handles them, and <code>MarketRegistry</code> hands it Sweden's rules instead of
+          Denmark's. There is no Sweden-only or Denmark-only endpoint.
+        </p>
+      </div>
+
+      <h2>What the answers mean</h2>
+      <div class="card">
+        <dl class="codes">
+          <dt>200 OK</dt>
+          <dd>The data that was asked for: the markets, a market's configuration, an ID check.</dd>
+          <dt>201 Created</dt>
+          <dd>The application was accepted.</dd>
+          <dt>422 Unprocessable</dt>
+          <dd>The application was rejected. The body lists the reasons, in the order of the flow.</dd>
+          <dt>404 Not Found</dt>
+          <dd>The market is switched off, or doesn't exist. Both look exactly the same.</dd>
+        </dl>
+      </div>
+      <p class="small">A 404 is a standard problem detail (RFC 9457), from the live demo:</p>
+      <pre>{ <span class="k">"title"</span>: "Not Found", <span class="k">"status"</span>: 404, <span class="k">"detail"</span>: "Market not available: NO",
+  <span class="k">"instance"</span>: "/api/markets/NO/onboarding" }</pre>
+      <div class="note">
+        A rejected application answers <strong>422, not an error.</strong> A rejection is a
+        normal outcome, so its body is ordinary data that the browser shows as a list, with a link
+        from each reason back to the step that fixes it.
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1, page 3: loading Denmark -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>Loading Denmark: the screens come from configuration</h2>
+      <p>
+        The browser loads the Angular app from the same server, or from the service worker's
+        cache on a repeat visit. The service worker is a small script the browser installs for
+        this site. It keeps a copy of the app's files on the person's device, but never the API's
+        answers.
+      </p>
+      <p>
+        The app asks which markets are live with <code>GET /api/markets</code>, and draws the
+        Sweden/Denmark switch from the answer. A link ending in <code>#dk</code> picks Denmark,
+        and <code>GET /api/markets/DK/onboarding</code> returns the whole flow as data:
+      </p>
+      <pre>{ <span class="k">"code"</span>: "DK", <span class="k">"displayName"</span>: "Denmark", <span class="k">"locale"</span>: "da-DK", <span class="k">"currency"</span>: "DKK",
+  <span class="k">"identityProvider"</span>: { <span class="k">"id"</span>: "mitid", <span class="k">"displayName"</span>: "MitID" },
+  <span class="k">"nationalId"</span>: { <span class="k">"label"</span>: "CPR number", <span class="k">"placeholder"</span>: "DDMMYY-SSSS",
+                  <span class="k">"pattern"</span>: "^\\d{6}-?\\d{4}$", <span class="k">"example"</span>: "121285-1234" },
+  <span class="k">"minimumAge"</span>: 18,
+  <span class="k">"steps"</span>: ["IDENTITY", "PERSONAL_DETAILS", "ACCOUNT_TYPE", "DISCLOSURES", "REVIEW"],
+  <span class="k">"products"</span>: [
+    { <span class="k">"id"</span>: "aktiesparekonto", <span class="k">"depositCap"</span>: 174200, <span class="k">"onePerPerson"</span>: true, <span class="c">…</span> },
+    { <span class="k">"id"</span>: "depot", <span class="k">"depositCap"</span>: null, <span class="k">"onePerPerson"</span>: false, <span class="c">…</span> } ],
+  <span class="k">"disclosures"</span>: [
+    { <span class="k">"id"</span>: "terms", <span class="k">"productId"</span>: null, <span class="k">"required"</span>: true, <span class="c">…</span> },
+    { <span class="k">"id"</span>: "ask-tax-liable", <span class="k">"productId"</span>: "aktiesparekonto", <span class="k">"required"</span>: true, <span class="c">…</span> }, <span class="c">…</span> ] }</pre>
+      <p class="small" style="margin-top: -1.5mm">
+        Trimmed from the live answer: some fields and confirmations are left out.
+      </p>
+      <div class="cols">
+        <div>
+          <h3>The deposit cap is data, too</h3>
+          <p>
+            Aktiesparekonto's yearly cap is looked up for the current year in Copenhagen time:
+            174,200 DKK in 2026. A new year's cap is one more entry in a map, not new code.
+          </p>
+          <h3>No Danish code in the app</h3>
+          <p>The Angular app shows what the configuration describes, for any market.</p>
+        </div>
+        <div>
+          <h3>When the market can't be loaded</h3>
+          <div class="err">
+            <strong>"Couldn't reach the server. Check your connection and try again."</strong>
+            The server didn't answer at all: no internet, or the server is down.
+          </div>
+          <div class="err">
+            <strong>"This market isn't available right now."</strong> The server answered 404,
+            because the market was switched off after the page loaded.
+          </div>
+          <p class="small">Choosing another market clears the message and shows that market.</p>
+        </div>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java"
+          >DenmarkMarket.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/frontend/src/app/onboarding/onboarding-flow.ts"
+          >onboarding-flow.ts</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1, page 4: step 1 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 1</span>
+      <h2 style="margin-top: 3mm">Verify identity, with simulated MitID</h2>
+      <p>
+        "Continue with MitID" sends <code>POST /api/markets/DK/identity/sessions</code>.
+        <strong>Session</strong> here means an eID login session on the server, not a browser
+        session or a cookie, and this call <em>is</em> the identity check, simulated. In a real
+        system the person would sign in at MitID, and MitID would send back a signed proof for the
+        server to verify. Here, the call pretends that succeeded.
+      </p>
+      <p>
+        The server creates a session id, remembers in memory that it belongs to Denmark, records
+        a <code>VERIFIED</code> event, and answers:
+      </p>
+      <pre>{ <span class="k">"sessionId"</span>: "sim-mitid-ccebc1b9-2b1a-4a9e-9407-abe52dfb0fd9" }</pre>
+      <div class="cols">
+        <div>
+          <h3 style="margin-top: 0">What the id is for</h3>
+          <p>
+            It is the proof of login. The browser keeps it in memory and sends it with the
+            application. The server then checks that it exists and belongs to Denmark, and
+            deletes it once an application is accepted, so one login can only be used for one
+            application.
+          </p>
+        </div>
+        <div>
+          <h3 style="margin-top: 0">Why it can disappear</h3>
+          <p>
+            It lives in the server's memory. A restart or a new release forgets it, and the
+            person is asked to log in again. That is also why the service runs one instance.
+          </p>
+        </div>
+      </div>
+      <figure style="margin-top: 3mm">
+        <img src="images/ch1-1-mitid-verified.png" alt="The identity step after a successful MitID login" />
+        <figcaption>Step 1: the simulated MitID login has succeeded.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1, page 5: step 2 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 2</span>
+      <h2 style="margin-top: 3mm">The CPR number is checked twice</h2>
+      <figure class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  K["Keystroke"] --> F{"Complete<br/>format?"}
+  F -- "yes" --> W["Wait 350 ms"]
+  W --> C["Server check<br/>CprRule + age"]
+  C --> M["Looks good.<br/>or the reason"]
+  F -- "not yet" --> H["A hint only<br/>no server call"]
+        </pre>
+        <figcaption>
+          The browser only checks the format. While the number is incomplete it shows the demo
+          test number as a hint, and "Use the format DDMMYY-SSSS." once the field is left. During
+          the server check it shows "Checking…".
+        </figcaption>
+      </figure>
+      <div class="cols cols--side">
+        <div>
+          <p>
+            <strong>In the browser,</strong> the format pattern from the configuration is checked
+            on every keystroke, for instant feedback. Only when the field holds a complete number
+            in the right format, and 350 ms after the last keystroke, does the browser ask the
+            server. It doesn't wait for the person to leave the field. A new keystroke cancels a
+            check that is still waiting, and the same number is never sent twice.
+          </p>
+          <p>
+            <strong>On the server,</strong> Denmark's <code>CprRule</code> reads the number: the
+            format, the century from the 7th digit, a real date, and not a date in the future. It
+            deliberately has no modulus-11 check, an old checksum for CPR numbers. Denmark stopped
+            guaranteeing it in 2007, so the check would reject real people.
+          </p>
+          <p>
+            Then comes the <strong>shared rule</strong>, written once for every market: the person
+            must be at least 18 on today's date in Copenhagen.
+          </p>
+          <pre>{ <span class="k">"valid"</span>: false,
+  <span class="k">"message"</span>: "You must be at least 18 to open an account yourself." }</pre>
+          <p class="small">
+            Each rejection records an <code>ID_REJECTED</code> event with a reason code, such as
+            <code>ID_UNDER_AGE</code>.
+          </p>
+          <p class="look">
+            Where to look:
+            <a
+              href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/CprRule.java"
+              >CprRule.java</a
+            >
+          </p>
+        </div>
+        <figure>
+          <img src="images/ch1-2-phone-age-rule.png" alt="On a phone, the age rule shown under the CPR field" />
+          <figcaption>On a phone: the server's age rule answers while the person types.</figcaption>
+        </figure>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1: steps 3 and 4 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Steps 3 and 4</span>
+      <h2 style="margin-top: 3mm">Account type and confirmations</h2>
+      <p>
+        The account type is chosen in the browser, from the configuration: Aktiesparekonto or
+        Depot. No call is needed, because the configuration already holds both, with this year's
+        deposit cap.
+      </p>
+      <p>
+        Aktiesparekonto adds two confirmations, marked <strong>For this account</strong>: "I don't
+        already hold an Aktiesparekonto with another bank" and "I am fully tax liable to Denmark".
+        Switching account type drops confirmations that no longer apply, and Continue stays
+        disabled until every required one is ticked.
+      </p>
+      <div class="cols" style="margin-top: 4mm">
+        <figure>
+          <img src="images/ch1-2-account-type.png" alt="The account types offered in Denmark" />
+          <figcaption>Step 3: the account types offered in Denmark, with this year's deposit cap.</figcaption>
+        </figure>
+        <figure>
+          <img src="images/ch1-3-confirmations.png" alt="The confirmations step for an Aktiesparekonto" />
+          <figcaption>Step 4: the last two confirmations appear only because Aktiesparekonto was chosen.</figcaption>
+        </figure>
+      </div>
+      <div class="note">
+        Which confirmations a market asks for, and which ones belong to a single account type, is
+        data in the market module. The confirmation screen has no Danish code.
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1: step 5 -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <span class="eyebrow">Step 5</span>
+      <h2 style="margin-top: 3mm">"Open account"</h2>
+      <p>The browser sends <code>POST /api/markets/DK/applications</code> with:</p>
+      <pre>{ <span class="k">"identitySessionId"</span>: "sim-mitid-ccebc1b9-…",
+  <span class="k">"nationalId"</span>: "121285-1234",
+  <span class="k">"fullName"</span>: "Freja Jensen",
+  <span class="k">"email"</span>: "freja@example.com",
+  <span class="k">"productId"</span>: "aktiesparekonto",
+  <span class="k">"acceptedDisclosures"</span>: ["terms", "kyc", "ask-one-per-person", "ask-tax-liable"] }</pre>
+      <p>
+        Everything the browser checked along the way, it checked for speed. The server now checks
+        all of it again.
+      </p>
+      <figure>
+        <img src="images/ch1-4-review.png" alt="The review step before the application is sent" />
+        <figcaption>Step 5: the review before the application is sent.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1: on the server -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>On the server</h2>
+      <figure class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  CR["Cloud Run<br/>europe-north1"] --> MC["MarketController<br/>HTTP only"]
+  MC --> OS["OnboardingService<br/>shared rules"]
+  OS --> MR["MarketRegistry<br/>404 if DK is off"]
+  MR --> DM["DenmarkMarket<br/>+ CprRule"]
+  OS -.-> EV["Events<br/>codes only"]
+        </pre>
+      </figure>
+      <div class="cols">
+        <div>
+          <p>
+            The request passes through layers that each have one job. The controller only speaks
+            HTTP. <code>OnboardingService</code> holds the rules every market shares.
+            <code>MarketRegistry</code> turns <code>DK</code> into Denmark's market module, or
+            answers 404 if Denmark is switched off. The market module supplies Denmark's data and
+            its ID rule.
+          </p>
+          <p class="look">
+            Where to look:
+            <a
+              href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/domain/OnboardingService.java"
+              >OnboardingService.java</a
+            >
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">The checks, in the order of the flow</h3>
+          <ol class="checks">
+            <li><span>The identity session exists and belongs to Denmark.</span></li>
+            <li><span>The CPR number is valid, and the person is at least 18.</span></li>
+            <li><span>A full name is given.</span></li>
+            <li><span>The email address is valid.</span></li>
+            <li><span>The account type is offered in Denmark.</span></li>
+            <li><span>Every confirmation required for that account type is accepted.</span></li>
+          </ol>
+          <p class="small">
+            Events: <code>SUBMITTED</code>, then either <code>ACCEPTED</code>, or
+            <code>REJECTED</code> with the first failed check as its reason.
+          </p>
+        </div>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1: the answer -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>The answer, and back in the browser</h2>
+      <div class="cols">
+        <div class="ok">
+          <strong>201 Created: accepted.</strong> The server then deletes the login session, so
+          this login can't be used for another application. Logging in again would still work:
+          nothing is stored that could stop the same person applying twice (see "What this does
+          not catch").
+          <pre>{ <span class="k">"accepted"</span>: true,
+  <span class="k">"applicationId"</span>: "APP-00A6D5F4",
+  <span class="k">"marketCode"</span>: "DK",
+  <span class="k">"productId"</span>: "aktiesparekonto",
+  <span class="k">"currency"</span>: "DKK",
+  <span class="k">"errors"</span>: [] }</pre>
+        </div>
+        <div class="err">
+          <strong>422: rejected,</strong> with the reasons in the order of the flow. Each one links
+          back to its step. An identity error asks for a new MitID login.
+          <pre>{ <span class="k">"accepted"</span>: false, <span class="c">…</span>
+  <span class="k">"errors"</span>: [ {
+    <span class="k">"field"</span>: "nationalId",
+    <span class="k">"code"</span>: "ID_UNDER_AGE",
+    <span class="k">"message"</span>: "You must be at least 18
+      to open an account yourself." } ] }</pre>
+        </div>
+      </div>
+      <figure>
+        <img src="images/ch1-5-done.png" alt="The done screen: Application accepted" />
+        <figcaption>
+          Accepted: the browser shows the reference, account, market and currency, with a clear
+          note that nothing was opened or saved.
+        </figcaption>
+      </figure>
+      <div class="cols">
+        <p class="small">
+          <strong>Network failure during the submit:</strong> the browser shows "Something went
+          wrong. Please try again."
+        </p>
+        <p class="small">
+          <strong>Switching market while a request is waiting</strong> cancels it in the browser,
+          so Sweden's screen never receives Denmark's answer. The server may already have handled
+          it, but nothing is stored either way.
+        </p>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 1: limits and design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 1 · Data flow</span>
+      </div>
+      <h2>What this path never does</h2>
+      <div class="cols" style="grid-template-columns: 1fr 1fr 1fr; gap: 4mm; align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">Stores nothing</h3>
+          <p>There is no database. The login session lives only in the server's memory.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">Logs no personal data</h3>
+          <p>
+            Events carry codes only: market, step, outcome, reason. Anything that looks like an ID
+            number is masked in every log line.
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">Caches no API answer</h3>
+          <p>
+            The service worker keeps the app itself, never market configuration, so a switched-off
+            market can't be shown from a cache.
+          </p>
+        </div>
+      </div>
+      <div class="note">
+        <strong>What this does not catch: duplicates.</strong> The same person can log in again
+        and apply again. With no database, nothing remembers earlier applications, and "one
+        Aktiesparekonto per person" is only a confirmation the person ticks. A real system would
+        check its customer records.
+      </div>
+
+      <h2 style="margin-top: 7mm">Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why check the ID number on the server if the browser already checks it?</dt>
+          <dd>
+            The browser only checks the format, for speed. The real rule needs today's date and the
+            shared age policy, and any client can skip the browser's checks entirely, for example
+            with curl.
+          </dd>
+          <dt>Why answer a rejected application with 422 instead of an error?</dt>
+          <dd>
+            A rejection is a normal outcome, not a failure. The body carries the field errors, so
+            the browser treats them as data and links each one to its step.
+          </dd>
+          <dt>Why is the market code in the URL?</dt>
+          <dd>
+            One controller serves every market. The registry turns the code into a market, or into
+            a 404 if that market is switched off.
+          </dd>
+          <dt>What happens if Denmark is switched off in the middle of an application?</dt>
+          <dd>
+            Every later Danish call answers 404. If the next one is the submit, the browser shows
+            "Something went wrong. Please try again." The login session is gone too, because
+            switching a market off starts a new revision of the service with empty memory.
+          </dd>
+        </dl>
+      </div>
+      <div class="folio"><span>Chapter 1 · Data flow</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 1: summary and the layers -->
+    <section class="sheet" id="chapter-2">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <span class="eyebrow">Chapter 2</span>
+      <h1>Architecture</h1>
+      <p class="chapter-sub">The layers, and why each boundary exists</p>
+      <div class="card">
+        <p class="lead">
+          The code is split so that adding a market never means changing the shared code. The
+          browser only renders what the server's configuration describes. On the server, every
+          dependency points towards the domain: the shared rules in plain Java, which depend on
+          nothing but Java itself.
+        </p>
+        <p class="lead">
+          Each country is a plug-in that implements one interface. Tests fail the build if a
+          boundary is crossed: if the domain or a market imports a framework, if one market uses another, or
+          if a market breaks the contract every market must follow.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+flowchart TB
+  subgraph browser["Browser · Angular"]
+    direction LR
+    SH["App shell<br/>market switch"] --> FL["OnboardingFlow<br/>state and steps"]
+    FL --> ST["Step components<br/>show and emit"]
+    FL --> API["MarketApi<br/>the only HTTP client"]
+  end
+  subgraph server["Spring Boot · Cloud Run"]
+    direction LR
+    WEB["web<br/>HTTP only"] --> DOM["domain<br/>shared rules, plain Java"]
+    MK["markets/se, markets/dk<br/>one plug-in per country"] --> DOM
+    LOG["logging<br/>events to JSON logs"] --> DOM
+    CFG["config<br/>wiring at startup"] -.-> DOM
+  end
+  browser -- "JSON over HTTPS" --> server
+        </pre>
+        <figcaption>
+          An arrow means "uses". Every arrow on the server points at the domain; the dotted one is
+          the wiring at startup.
+        </figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2: where each piece runs -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>Where each piece runs</h2>
+      <p>
+        Everything is deployed as <strong>one container</strong> on Cloud Run: one Java process,
+        whose jar holds the Java backend and the built Angular files. The Angular app is stored
+        there, but runs in the visitor's browser once downloaded.
+      </p>
+      <figure class="diagram diagram--medium">
+        <pre class="mermaid">
+flowchart TB
+  B["Browser: runs the Angular app"] -- "HTTPS" --> G["Google's front end: handles HTTPS"]
+  G -- "plain HTTP, port 8080" --> C
+  subgraph C["One container"]
+    direction LR
+    T["Tomcat<br/>+ Angular files"] --> W["MarketController"] --> D["OnboardingService"] --> M["DenmarkMarket<br/>+ CprRule"]
+  end
+        </pre>
+        <figcaption>The only network hop is between the browser and the server.</figcaption>
+      </figure>
+      <h3>One "Open account" click, hop by hop</h3>
+      <div class="card boundaries">
+        <dl>
+          <dt>1 · Browser → Google</dt>
+          <dd><p>HTTPS over the internet: <code>POST /api/markets/DK/applications</code>, with a JSON body.</p></dd>
+          <dt>2 · Google → container</dt>
+          <dd><p>Plain HTTP on port 8080, inside Google's network.</p></dd>
+          <dt>3 · Tomcat → controller</dt>
+          <dd>
+            <p>
+              Spring matches the POST and the URL to <code>MarketController.submit</code>, and
+              Jackson turns the JSON body into a Java object, <code>ApplicationRequest</code>.
+            </p>
+          </dd>
+          <dt>4 · controller → service</dt>
+          <dd><p>A plain Java method call in the same process: <code>OnboardingService.submit</code>.</p></dd>
+          <dt>5 · service → market</dt>
+          <dd><p>Plain method calls to <code>MarketRegistry</code>, <code>DenmarkMarket</code> and <code>CprRule</code>.</p></dd>
+          <dt>6 · back</dt>
+          <dd>
+            <p>
+              The result becomes JSON with 201 or 422, and travels back the same way.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <div class="cols" style="align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">What a market module is</h3>
+          <p>
+            One folder per country, such as <code>markets/dk</code>: <code>DenmarkMarket</code>
+            holds Denmark's data and <code>CprRule</code> reads its ID numbers. It is a Java package
+            compiled into the same jar, not a separate service.
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">On a laptop it's two processes</h3>
+          <p>
+            <code>ng serve</code> runs the Angular app on port 4200 and passes <code>/api</code>
+            calls to Spring Boot on port 8080. In production, both are the one container.
+          </p>
+        </div>
+      </div>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 2: the boundaries at a glance -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>The boundaries, and what guards each one</h2>
+      <div class="card boundaries">
+        <dl>
+          <dt>Browser and server</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> JSON. The server sends a market's whole flow as
+              configuration; the browser sends the application back.
+            </p>
+            <p>
+              <strong>Why:</strong> the Angular app has no country code, so a new market needs no
+              frontend change.
+            </p>
+          </dd>
+          <dt>web and domain</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> plain method calls, such as
+              <code>submit(code, request)</code>. The web layer turns HTTP into calls, and results
+              into status codes: 201, 422, 404.
+            </p>
+            <p>
+              <strong>Why:</strong> the rules are tested without starting a web server.
+              <strong>Guard:</strong> <code>MarketApiTest</code> for the HTTP contract.
+            </p>
+          </dd>
+          <dt>domain, markets and frameworks</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> nothing. The domain imports only Java, and the
+              markets only Java and the domain. <strong>Why:</strong> they stay simple to test and
+              easy to move. <strong>Guard:</strong> two ArchUnit rules in
+              <code>ArchitectureTest</code>.
+            </p>
+          </dd>
+          <dt>domain and markets</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> the <code>Market</code> interface. A market
+              supplies data and parsing rules; the domain applies the shared policy.
+              <strong>Guard:</strong> <code>MarketContractTest</code>, which every market must
+              pass.
+            </p>
+          </dd>
+          <dt>market and market</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> nothing. Sweden and Denmark never use each other,
+              so a change for one country can't break the other. <strong>Guard:</strong> a second
+              ArchUnit rule.
+            </p>
+          </dd>
+          <dt>domain and the outside world</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> two small interfaces, called ports: a
+              <code>Clock</code> for time and <code>OnboardingEvents</code> for what happened.
+              <strong>Why:</strong> tests set "today" and read the events, and the domain never
+              knows about logs. <strong>Guard:</strong> <code>OnboardingServiceTest</code>.
+            </p>
+          </dd>
+          <dt>built and live</dt>
+          <dd>
+            <p>
+              <strong>What passes between the two sides:</strong> the setting <code>MARKETS_ENABLED</code>. A market
+              can be deployed and still be dark. <strong>Guard:</strong>
+              <code>MarketRegistryTest</code>.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 3: the Market contract -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>The contract every market implements</h2>
+      <p>
+        A market is one class that implements <code>Market</code>. Everything that differs
+        between countries is a method here: the code, the language and currency, the time zone,
+        the eID, how to read the ID number, the account types and the confirmations.
+      </p>
+      <pre><span class="k">public interface</span> Market {
+    String code();                    <span class="c">// "SE", "DK"</span>
+    String displayName();
+    Locale locale();
+    ZoneId zone();                    <span class="c">// where "today" is decided</span>
+    Currency currency();
+    IdentityProvider identityProvider();
+    NationalIdRule nationalIdRule();  <span class="c">// how to read this country's ID number</span>
+    List&lt;AccountProduct&gt; products();
+    List&lt;Disclosure&gt; disclosures();
+
+    <span class="k">default</span> List&lt;StepType&gt; steps() { <span class="k">return</span> List.of(IDENTITY, PERSONAL_DETAILS, ACCOUNT_TYPE,
+                                                     DISCLOSURES, REVIEW); }
+    <span class="k">default int</span> minimumAge() { <span class="k">return</span> 18; }
+}</pre>
+      <p>
+        Two methods have defaults: the steps and the minimum age. A market changes them only if
+        it needs to. The ID rule is a second, smaller interface:
+      </p>
+      <pre><span class="k">public interface</span> NationalIdRule {
+    String label();          <span class="c">// "Personnummer", "CPR number"</span>
+    String placeholder();    <span class="c">// "YYYYMMDD-NNNN", "DDMMYY-SSSS"</span>
+    String example();        <span class="c">// a well-known test number, never a real person's</span>
+    String formatPattern();  <span class="c">// a loose pattern for the browser; the server decides</span>
+    NationalIdResult parse(String raw, LocalDate today);
+}</pre>
+      <div class="note">
+        <strong>Markets supply data and parsing rules. They don't decide policy.</strong> A market
+        says how to read its ID number and what its minimum age is. The check "is this person old
+        enough?" is written once, in <code>OnboardingService</code>, and applies to every market.
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/domain/Market.java"
+          >Market.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/domain/NationalIdRule.java"
+          >NationalIdRule.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 4: a market module, and the contract test -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>A market module: rules are data</h2>
+      <p>
+        Denmark's module is <code>DenmarkMarket</code> and its ID rule, <code>CprRule</code>,
+        side by side in <code>markets/dk</code>. Its account types are data. The deposit cap is a
+        map from year to amount, not an <code>if</code> statement, so next year's cap is one more
+        entry:
+      </p>
+      <pre><span class="k">new</span> AccountProduct(AKTIESPAREKONTO, "Aktiesparekonto",
+        "Returns taxed at 17% each year. One per person, with an annual deposit cap.",
+        Map.of(2025, <span class="k">new</span> BigDecimal("166200"), 2026, <span class="k">new</span> BigDecimal("174200")), <span class="k">true</span>),
+<span class="k">new</span> AccountProduct("depot", "Depot (frie midler)",
+        "A standard investment account with no deposit cap. Returns are taxed as share income.",
+        Map.of(), <span class="k">false</span>)</pre>
+      <p>Confirmations are data too, and some belong to one account type only:</p>
+      <pre>Disclosure.required("terms", "I have read and accept the account terms and conditions."),
+Disclosure.requiredFor(AKTIESPAREKONTO, "ask-tax-liable", "I am fully tax liable to Denmark."),
+Disclosure.optional("news", "Send me occasional product news by email.")</pre>
+
+      <h2 style="margin-top: 6mm">The contract test every market must pass</h2>
+      <p>
+        <code>MarketContractTest</code> runs the same checks for every market in its list. Adding
+        Norway to the list runs them all for Norway too:
+      </p>
+      <div class="card">
+        <ol class="checks">
+          <li><span>Codes are unique, two-letter country codes.</span></li>
+          <li><span>The market has a time zone.</span></li>
+          <li><span>The flow starts with identity and ends with review.</span></li>
+          <li><span>It offers at least one account type, with unique ids.</span></li>
+          <li><span>It requires the terms to be accepted.</span></li>
+          <li><span>Confirmation ids are unique.</span></li>
+          <li>
+            <span>Every confirmation that belongs to one account type names an account type that
+            exists, so a typo can't silently drop it.</span>
+          </li>
+          <li>
+            <span>The ID field is consistent: its example matches the pattern and is valid, and
+            garbage is rejected.</span>
+          </li>
+        </ol>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java"
+          >DenmarkMarket.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/test/java/dev/krishnapriya/onboarding/domain/MarketContractTest.java"
+          >MarketContractTest.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 5: guarding the boundaries, and the ports -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>Boundaries the build enforces</h2>
+      <p>
+        Three ArchUnit rules read the compiled classes on every build. If any is broken, the
+        build fails before anything is deployed.
+      </p>
+      <pre><span class="c">/** Rule 1: the domain is plain Java. This also keeps it from knowing about any one market. */</span>
+<span class="k">static final</span> ArchRule domainIsPlainJava = classes()
+        .that().resideInAPackage("dev.krishnapriya.onboarding.domain..")
+        .should().onlyDependOnClassesThat()
+        .resideInAnyPackage("java..", "dev.krishnapriya.onboarding.domain..");
+
+<span class="c">/** Rule 2: markets never use each other, so a change for one country cannot break another. */</span>
+<span class="k">static final</span> ArchRule marketsAreIndependent = slices()
+        .matching("dev.krishnapriya.onboarding.markets.(*)..")
+        .should().notDependOnEachOther();
+
+<span class="c">/** Rule 3: markets are plain Java too, using only Java and the domain. */</span>
+<span class="k">static final</span> ArchRule marketsArePlainJava = classes()
+        .that().resideInAPackage("dev.krishnapriya.onboarding.markets..")
+        .should().onlyDependOnClassesThat().resideInAnyPackage(
+                "java..", "dev.krishnapriya.onboarding.domain..", "dev.krishnapriya.onboarding.markets..");</pre>
+      <p class="small">
+        Rule 1 does two jobs: Spring can't sneak into the domain, and neither can a market, because
+        the market packages are outside it too.
+      </p>
+
+      <h2 style="margin-top: 6mm">Ports: time and events</h2>
+      <p>
+        The domain needs two things from the outside world: the current time, and somewhere to
+        report what happened. It asks for both through small interfaces, called ports, and
+        Spring plugs in the real ones at startup:
+      </p>
+      <div class="cols" style="align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">Time: an injected <code>Clock</code></h3>
+          <p>
+            In production it is the system clock in UTC, and each market turns it into its own
+            local date. In tests it is fixed, so "today" can be any date, including the minute
+            before and after an 18th birthday at Copenhagen midnight.
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">Events: <code>OnboardingEvents</code></h3>
+          <p>
+            In production, <code>OnboardingLog</code> writes each event as a JSON log line. In
+            tests, a plain list collects them, so a test can check exactly which events an
+            application produced.
+          </p>
+        </div>
+      </div>
+      <pre><span class="c">// OnboardingServiceTest: a fixed clock, and events collected in a list</span>
+Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
+MarketRegistry registry = <span class="k">new</span> MarketRegistry(
+        List.of(<span class="k">new</span> SwedenMarket(), <span class="k">new</span> DenmarkMarket()), Set.of("SE", "DK"));
+<span class="k">private final</span> List&lt;OnboardingEvent&gt; events = <span class="k">new</span> ArrayList&lt;&gt;();
+<span class="c">// ... new OnboardingService(registry, clock, events::add)</span></pre>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/test/java/dev/krishnapriya/onboarding/ArchitectureTest.java"
+          >ArchitectureTest.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/test/java/dev/krishnapriya/onboarding/domain/OnboardingServiceTest.java"
+          >OnboardingServiceTest.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 6: the web layer and the wiring -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>The web layer only speaks HTTP</h2>
+      <p>
+        <code>MarketController</code> turns each request into one call on
+        <code>OnboardingService</code>, and the answer into a status code. It holds no rules:
+      </p>
+      <pre>@PostMapping("/{code}/applications")
+<span class="k">public</span> ResponseEntity&lt;ApplicationResult&gt; submit(@PathVariable String code,
+                                                @RequestBody ApplicationRequest request) {
+    ApplicationResult result = onboarding.submit(code, request);
+    <span class="k">return</span> ResponseEntity
+            .status(result.accepted() ? HttpStatus.CREATED : HttpStatus.UNPROCESSABLE_CONTENT)
+            .body(result);
+}</pre>
+      <div class="cols">
+        <div>
+          <h3>One error shape</h3>
+          <p>
+            <code>ApiExceptionHandler</code> turns an unknown or switched-off market into a 404
+            problem detail. A built but disabled market looks exactly like one that doesn't exist.
+          </p>
+        </div>
+        <div>
+          <h3>Synthetic traffic, kept out of the domain</h3>
+          <p>
+            <code>SyntheticTrafficFilter</code> spots the hourly test sign-up by a request header
+            and tags its log lines. The domain never sees the header.
+          </p>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 6mm">One place where Spring meets the domain</h2>
+      <p>
+        <code>MarketWiring</code> creates the markets, the registry, the clock, the event logger
+        and the service. It is the only class that connects the plain-Java domain to Spring:
+      </p>
+      <pre>@Bean Market sweden()  { <span class="k">return new</span> SwedenMarket(); }
+@Bean Market denmark() { <span class="k">return new</span> DenmarkMarket(); }
+
+@Bean MarketRegistry marketRegistry(List&lt;Market&gt; markets,
+                                   @Value("${markets.enabled}") Set&lt;String&gt; enabled) {
+    <span class="k">return new</span> MarketRegistry(markets, enabled);
+}
+@Bean Clock clock() { <span class="k">return</span> Clock.systemUTC(); }
+@Bean OnboardingEvents onboardingEvents() { <span class="k">return new</span> OnboardingLog(); }</pre>
+      <div class="note">
+        <strong>Built is not the same as live.</strong> The registry receives every built market,
+        but only enables the codes in <code>MARKETS_ENABLED</code>. It checks every built market
+        for a duplicate code, so a clash fails the release that ships a market dark, not the
+        later switch that launches it.
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/config/MarketWiring.java"
+          >MarketWiring.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/domain/MarketRegistry.java"
+          >MarketRegistry.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 7: the frontend -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>The frontend renders configuration</h2>
+      <p>
+        The Angular app is split the same way: one part holds state, the parts below it only show
+        and emit, and none of them knows a country.
+      </p>
+      <div class="card">
+        <dl class="layers">
+          <dt>App shell <code>app.ts</code></dt>
+          <dd>
+            Loads the list of live markets, draws the Sweden/Denmark switch, loads the chosen
+            market's configuration, and shows the error messages. Quick switching always ends on
+            the last market clicked.
+          </dd>
+          <dt>Flow <code>onboarding-flow.ts</code></dt>
+          <dd>
+            Holds the application's state, in Angular signals and one reactive form: the current
+            step, the login session, the details, the chosen account and the ticked confirmations. It decides when
+            Continue is allowed, calls the API, and resets everything when the market changes.
+          </dd>
+          <dt>Steps <code>steps/*.ts</code></dt>
+          <dd>
+            The identity, details, account type and confirmation screens. Each one receives the
+            configuration as an input and reports what the person did as an output. None of them
+            calls the server.
+          </dd>
+          <dt>Core <code>core/*.ts</code></dt>
+          <dd>
+            The types that mirror the server's JSON, small helpers such as formatting money in the
+            market's locale, and <code>MarketApi</code>, the only code that sends HTTP requests.
+          </dd>
+        </dl>
+      </div>
+      <div class="note">
+        <strong>No country code.</strong> The labels, the ID format, the account types, the caps
+        and the confirmations all come from <code>GET /api/markets/{code}/onboarding</code>. The
+        same components show Sweden and Denmark.
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/frontend/src/app/app.ts"
+          >app.ts</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/frontend/src/app/onboarding/onboarding-flow.ts"
+          >onboarding-flow.ts</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/frontend/src/app/core/market-api.ts"
+          >market-api.ts</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 8: the PWA -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>Installable as an app</h2>
+      <p>
+        The frontend is a progressive web app (PWA). A <strong>manifest</strong> gives it a name,
+        icons and its own window, and a <strong>service worker</strong> keeps a copy of the app's
+        files on the device, so it can start without a connection.
+      </p>
+      <div class="cols">
+        <figure>
+          <img src="images/ch2-pwa-install-dialog.png" alt="Chrome's install dialog for Nordic Onboarding" />
+          <figcaption>
+            Chrome's install dialog. The name and the icon come from the app's manifest.
+          </figcaption>
+        </figure>
+        <div>
+          <h3 style="margin-top: 0">The one boundary the service worker keeps</h3>
+          <p>
+            It caches the app itself, but never an API answer. A cached market configuration
+            could show a market that the kill switch has turned off. Requests to
+            <code>/api</code> and <code>/actuator</code> always go to the server.
+          </p>
+          <p class="small">
+            A frontend test checks these cache rules, and CI checks that the real container serves
+            the manifest, the icons and the worker.
+          </p>
+        </div>
+      </div>
+      <figure>
+        <img src="images/ch2-pwa-installed-window.png" alt="Nordic Onboarding installed, in its own window" />
+        <figcaption>Installed on a Mac: its own window, with no browser address bar.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 2, page 9: design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 2 · Architecture</span>
+      </div>
+      <h2>Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why one service for every market, not one per market?</dt>
+          <dd>
+            The flow and the shared rules are the same everywhere, so one service keeps them in one
+            place. A service per market would copy them, and the copies would drift apart.
+          </dd>
+          <dt>Why is a market a class, not a configuration file?</dt>
+          <dd>
+            Most of a market is data, but reading an ID number is real logic: check digits,
+            century rules, impossible dates. A class can hold both, and the contract test can call
+            it.
+          </dd>
+          <dt>Why can't markets use each other, even to share code?</dt>
+          <dd>
+            So that a change for one country can't break another. Code that two markets truly
+            share belongs in the domain, where every market can use it and the domain's tests
+            cover it.
+          </dd>
+          <dt>Why keep the domain free of Spring?</dt>
+          <dd>
+            Its tests run as plain Java, in a fraction of a second, without starting anything. It also keeps
+            the rules readable: what's in the domain is business logic, nothing else.
+          </dd>
+          <dt>Why a registry instead of a switch on the market code?</dt>
+          <dd>
+            Adding a market then means registering one more object. There is no list of countries
+            in the shared code to update, and a dark market answers 404 like any unknown code.
+          </dd>
+        </dl>
+      </div>
+      <div class="note">
+        <strong>Adding Norway, in short:</strong> a <code>NorwayMarket</code> and a
+        <code>FodselsnummerRule</code> in <code>markets/no</code>, one bean in
+        <code>MarketWiring</code>, one entry in <code>MarketContractTest</code>. Nothing in the
+        domain, the web layer or the Angular app changes.
+      </div>
+      <div class="folio"><span>Chapter 2 · Architecture</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 1: summary and the pipeline -->
+    <section class="sheet" id="chapter-3">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <span class="eyebrow">Chapter 3</span>
+      <h1>Delivery</h1>
+      <p class="chapter-sub">From git push to traffic on a new version</p>
+      <div class="card">
+        <p class="lead">
+          Every change goes through a pull request, and CI tests it in four jobs before it can
+          reach main. When main is green, the deploy job releases it by itself: Google Cloud builds
+          the image, starts a new version that gets no traffic, and the release smoke-tests that
+          version at its own private address. Only then does it move all traffic.
+        </p>
+        <p class="lead">
+          The last release took 4 minutes from the merge to 100% of traffic. A broken build never
+          reaches customers, and going back is one command.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+flowchart TB
+  P["Pull request"] --> CI["CI: backend, frontend, container, scripts"]
+  CI -- "merge: green main" --> B["The image is built in Google Cloud, from source"]
+  B --> C["A new revision starts with 0% of traffic,<br/>at its own candidate URL"]
+  C --> S{"Smoke test"}
+  S -- "pass" --> T["100% of traffic"]
+  S -- "fail" --> X["Customers stay on<br/>the current revision"]
+        </pre>
+        <figcaption>
+          The same pipeline runs for every change. A revision is one deployed version of the
+          service; Cloud Run keeps the old one serving until the new one is proven.
+        </figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 2: what CI checks -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <h2>What CI checks</h2>
+      <p>
+        CI runs on every pull request, and again on main after the merge. A newer push to a branch
+        cancels that branch's older run, but a run on main is never cancelled, because it may be
+        in the middle of a release.
+      </p>
+      <figure>
+        <img src="images/ch3-ci-run.png" alt="The CI run for the merge of pull request 9" />
+        <figcaption>
+          The merge of pull request #9: four jobs in parallel, then the deploy. 4 minutes 1 second
+          in total.
+        </figcaption>
+      </figure>
+      <div class="card boundaries">
+        <dl>
+          <dt>backend</dt>
+          <dd>
+            <p>
+              <code>mvn verify</code>: 115 tests, including the ArchUnit rules, the market
+              contract, the HTTP contract and the monitoring contract tests.
+            </p>
+          </dd>
+          <dt>frontend</dt>
+          <dd><p>37 tests, then the production build.</p></dd>
+          <dt>container</dt>
+          <dd>
+            <p>
+              Builds the real image and starts it. Then it checks that it passes the smoke test,
+              runs as a non-root user, completes a synthetic sign-up in both markets, writes JSON
+              logs with tagged events, can be installed as a PWA, and goes dark for a market that
+              is switched off.
+            </p>
+          </dd>
+          <dt>scripts</dt>
+          <dd>
+            <p>
+              Tests the release and kill-switch scripts against a fake <code>gcloud</code>, so
+              their logic is checked without touching Google Cloud.
+            </p>
+          </dd>
+          <dt>deploy</dt>
+          <dd>
+            <p>
+              Runs only on main, only after all four jobs pass, and only one at a time.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/.github/workflows/ci.yml"
+          >ci.yml</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 3: the image -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <h2>One image: Angular inside the Spring Boot jar</h2>
+      <p>
+        The <code>Dockerfile</code> builds the whole app in three stages, so the image that runs
+        holds only a Java runtime and one jar:
+      </p>
+      <div class="card">
+        <ol class="checks">
+          <li>
+            <span><strong>Frontend:</strong> Node 24 installs the exact packages from the lock
+            file and runs the Angular production build.</span>
+          </li>
+          <li>
+            <span><strong>Backend:</strong> Maven builds the Spring Boot jar, with the Angular
+            build copied in as its static files. Dependencies get their own layer, so a code
+            change doesn't download them all again.</span>
+          </li>
+          <li>
+            <span><strong>Runtime:</strong> a Java 25 runtime and the jar, nothing else. The tests
+            already ran in CI, so the image build skips them.</span>
+          </li>
+        </ol>
+      </div>
+      <pre><span class="c"># 3. Runtime: only a Java runtime and the jar</span>
+<span class="k">FROM</span> eclipse-temurin:25-jre
+<span class="k">COPY</span> --from=api /api/target/onboarding-0.1.0.jar app.jar
+<span class="k">ENV</span> LOGGING_STRUCTURED_FORMAT_CONSOLE=dev.krishnapriya.onboarding.logging.CloudLoggingFormat
+<span class="c"># Not root, so a compromised app can't modify the image or anything else it doesn't own.</span>
+<span class="k">USER</span> 1000
+<span class="c"># Java defaults to a quarter of the container's memory for its heap; small instances need more.</span>
+<span class="k">ENTRYPOINT</span> ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]</pre>
+      <div class="cols">
+        <div>
+          <h3>Same origin, no CORS</h3>
+          <p>
+            Because the Angular files are served by the same Spring Boot app as the API, the
+            browser calls <code>/api/...</code> on the same address. There is no second service
+            and no cross-origin setup.
+          </p>
+        </div>
+        <div>
+          <h3>Only what's needed is uploaded</h3>
+          <p>
+            <code>.gcloudignore</code> keeps <code>.git</code> and everything in
+            <code>.gitignore</code> out of the upload. <code>.dockerignore</code> is an allowlist:
+            only the backend sources and the frontend reach the image build.
+          </p>
+        </div>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/Dockerfile"
+          >Dockerfile</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/.dockerignore"
+          >.dockerignore</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 4: the release, step by step -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <h2>The release, step by step</h2>
+      <p>
+        <code>scripts/deploy.sh</code> does the release. The deploy job signs in to Google Cloud
+        (Chapter 4 explains how) and runs it:
+      </p>
+      <div class="card">
+        <ol class="checks">
+          <li>
+            <span><strong>Refuse an unsafe upload.</strong> If a credentials file would be
+            uploaded with the source, the release stops before anything changes.</span>
+          </li>
+          <li>
+            <span><strong>Deploy with no traffic.</strong> <code>gcloud run deploy --source .
+            --no-traffic --tag=candidate</code> builds the image in Google Cloud and starts a new
+            revision. Customers can't reach it: it is only at its own tagged address.</span>
+          </li>
+          <li>
+            <span><strong>Smoke-test the candidate.</strong> The health check, the page and the
+            API must all answer at that address. If not, the release fails and customers stay on
+            the current revision.</span>
+          </li>
+          <li>
+            <span><strong>Move all traffic.</strong> The candidate gets 100%, and its tag is
+            removed, so it isn't kept running once a later release replaces it.</span>
+          </li>
+        </ol>
+      </div>
+      <p class="small">From the last release's log. Long lines are wrapped, and the project ID is masked:</p>
+      <pre>Building using Dockerfile and deploying container to Cloud Run service [nordic-onboarding]
+    in project [<span class="c">•••</span>] region [europe-north1]
+Service [nordic-onboarding] revision [nordic-onboarding-00020-quf] has been deployed
+    and is serving 0 percent of traffic.
+Candidate nordic-onboarding-00020-quf is at https://candidate---nordic-onboarding-kzld3oh6ya-lz.a.run.app
+ok   /actuator/health
+ok   /
+ok   /api/markets
+Routing traffic.......................done
+nordic-onboarding-00020-quf now serves 100% of traffic</pre>
+      <p class="small">
+        A first-ever deploy is the one exception: <code>--no-traffic</code> can't create a
+        service, so the very first release goes live straight away.
+      </p>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/scripts/deploy.sh"
+          >deploy.sh</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/scripts/smoke-test.sh"
+          >smoke-test.sh</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 5: settings, tests and evidence -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <h2>The settings each release keeps</h2>
+      <div class="card boundaries boundaries--wide">
+        <dl>
+          <dt><code>--min=1</code></dt>
+          <dd>
+            <p>
+              One warm instance for the service, on whichever revision serves traffic, so the
+              first visitor doesn't wait for Java to start.
+            </p>
+          </dd>
+          <dt><code>--min-instances=default</code></dt>
+          <dd>
+            <p>
+              No warm copy kept for each version. Otherwise every tested candidate would be kept
+              running, and billed.
+            </p>
+          </dd>
+          <dt><code>--max-instances=1</code></dt>
+          <dd>
+            <p>
+              At most one running copy of each version, because the simulated eID sessions live in
+              that copy's memory.
+            </p>
+          </dd>
+          <dt><code>MARKETS_ENABLED</code></dt>
+          <dd>
+            <p>
+              Not set by a release, on purpose. A release keeps the service's current value, so a
+              market that was switched off stays off.
+            </p>
+          </dd>
+        </dl>
+      </div>
+
+      <h2 style="margin-top: 6mm">How we know it works</h2>
+      <div class="cols">
+        <div class="card">
+          <h3 style="margin-top: 0">The release logic is tested</h3>
+          <p class="small">
+            <code>deploy.test.sh</code> runs <code>deploy.sh</code> against a fake
+            <code>gcloud</code> that records every call:
+          </p>
+          <ul class="small">
+            <li>a passing candidate is tested at its tagged URL, then gets 100% of traffic</li>
+            <li>a failing candidate gets no traffic, and the release fails</li>
+            <li>a first-ever deploy creates the service directly</li>
+            <li>a release is refused if a credentials file would be uploaded</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">A real release, watched</h3>
+          <p class="small">
+            During a real release, a script called the live API every 2 seconds for 3 minutes and
+            got 86 successful answers out of 86. Customers saw no gap while traffic moved.
+          </p>
+          <h3>Going back is one command</h3>
+          <pre style="margin: 0">gcloud run services update-traffic nordic-onboarding \
+  --to-revisions=&lt;previous&gt;=100</pre>
+          <p class="small" style="margin-top: 2mm">No rebuild: the old revision is still there.</p>
+        </div>
+      </div>
+      <div class="note">
+        <strong>One release at a time.</strong> Releases and the kill switch share one queue, so
+        they never change the service at the same moment.
+      </div>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 3, page 6: design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 3 · Delivery</span>
+      </div>
+      <h2>Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why test the new version at its own address instead of a staging environment?</dt>
+          <dd>
+            The candidate runs the real image, on the real platform, with production's settings.
+            A separate staging environment would cost more and could drift from production. Here
+            the only difference is that customers can't reach it yet.
+          </dd>
+          <dt>Why release automatically on every green main?</dt>
+          <dd>
+            Small, frequent releases are easier to check and easier to undo. The pull request is
+            where a person decides; after that, the pipeline and its tests decide.
+          </dd>
+          <dt>Is the deployed image the same one CI tested?</dt>
+          <dd>
+            Not byte for byte. CI's container job tests an image built from the same commit and
+            the same <code>Dockerfile</code>, and Google Cloud builds the released image again from
+            that source. A stricter setup would build the image once and promote that exact image.
+          </dd>
+          <dt>Why not set <code>MARKETS_ENABLED</code> during a release?</dt>
+          <dd>
+            A release and a market launch are separate decisions. If a release reset the setting,
+            fixing a bug could quietly switch a market back on that was turned off for a reason.
+          </dd>
+          <dt>What happens to a candidate that fails its smoke test?</dt>
+          <dd>
+            It stays at 0% of traffic and the job fails, so the failure is visible in GitHub.
+            Customers keep using the current revision, and the next release replaces the
+            candidate.
+          </dd>
+        </dl>
+      </div>
+      <div class="folio"><span>Chapter 3 · Delivery</span><span></span></div>
+    </section>
+
+    <!-- Chapter 4, page 1: summary and what runs where -->
+    <section class="sheet" id="chapter-4">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 4 · Cloud</span>
+      </div>
+      <span class="eyebrow">Chapter 4</span>
+      <h1>Cloud</h1>
+      <p class="chapter-sub">What runs where in Google Cloud, and who is allowed to do what</p>
+      <div class="card">
+        <p class="lead">
+          The app runs on Cloud Run in europe-north1, in Finland. Google Cloud builds each release
+          from source, stores the image, and collects the app's logs. GitHub signs in with
+          short-lived tokens instead of stored keys, and only from this repository's main branch.
+        </p>
+        <p class="lead">
+          Three narrow identities do the work: one deploys, one builds the image, and the app
+          itself runs as one with no permissions at all.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+flowchart TB
+  DEP["GitHub: the deploy job and the kill switch"]
+  V["Visitors and the hourly synthetic sign-up"]
+  subgraph gcp["Google Cloud · europe-north1"]
+    WIF["Workload Identity Federation<br/>checks: this repo, on main"]
+    CB["Cloud Build, as nordic-build"]
+    AR["Artifact Registry: the images"]
+    CR["Cloud Run: nordic-onboarding,<br/>runs as nordic-run"]
+    MON["Cloud Logging and Monitoring"]
+  end
+  DEP -- "short-lived token" --> WIF
+  WIF -- "acts as github-deployer" --> CB
+  CB --> AR --> CR
+  V -- "public HTTPS" --> CR
+  CR -- "JSON log lines" --> MON
+  MON -- "alert email" --> YOU["The project owner's inbox"]
+        </pre>
+        <figcaption>
+          Visitors and the synthetic sign-up only reach the public URL. Only the deploy job and
+          the kill switch sign in to Google Cloud, and they can only deploy.
+        </figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 4 · Cloud</span><span></span></div>
+    </section>
+
+    <!-- Chapter 4, page 2: the services -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 4 · Cloud</span>
+      </div>
+      <h2>What runs where</h2>
+      <div class="card boundaries boundaries--wide">
+        <dl>
+          <dt>Cloud Run</dt>
+          <dd>
+            <p>
+              The service <code>nordic-onboarding</code>: the container from Chapter 3, at a
+              public HTTPS address. It keeps every revision, so traffic can move between them, and
+              runs one warm copy, with at most one copy of each version.
+            </p>
+          </dd>
+          <dt>Cloud Build</dt>
+          <dd>
+            <p>
+              Builds the image from the uploaded source with the <code>Dockerfile</code>, as the
+              identity <code>nordic-build</code>.
+            </p>
+          </dd>
+          <dt>Cloud Storage</dt>
+          <dd>
+            <p>A private bucket that holds each release's uploaded source archive.</p>
+          </dd>
+          <dt>Artifact Registry</dt>
+          <dd>
+            <p>
+              The repository <code>cloud-run-source-deploy</code>, which stores the built images.
+            </p>
+          </dd>
+          <dt>Cloud Logging</dt>
+          <dd>
+            <p>
+              Receives every line the container writes. Because the lines are JSON, it reads their
+              fields: severity, market, step, outcome, reason.
+            </p>
+          </dd>
+          <dt>Cloud Monitoring</dt>
+          <dd>
+            <p>
+              The metric, dashboard, uptime check and email alerts from Chapter 5. They are
+              defined in the repository and applied by hand.
+            </p>
+          </dd>
+          <dt>IAM and Workload Identity Federation</dt>
+          <dd><p>Who may do what, and how GitHub signs in. The next two pages.</p></dd>
+          <dt>Billing</dt>
+          <dd>
+            <p>
+              A Google Cloud free trial, with a budget alert at 150 SEK a month. The live demo may
+              pause when the trial ends.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <div class="note">
+        <strong>No secrets in GitHub.</strong> The repository only stores four plain settings:
+        the project ID, the deployer's name, the identity provider's name and the app's URL.
+        None of them is a password or a key: knowing all four doesn't let anyone deploy.
+      </div>
+      <div class="folio"><span>Chapter 4 · Cloud</span><span></span></div>
+    </section>
+
+    <!-- Chapter 4, page 3: signing in without keys -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 4 · Cloud</span>
+      </div>
+      <h2>Signing in without keys</h2>
+      <p>
+        GitHub never holds a Google key. Each run proves who it is with a short-lived token, and
+        Google decides whether that proof is good enough. This is called Workload Identity
+        Federation.
+      </p>
+      <div class="card">
+        <ol class="checks">
+          <li>
+            <span><strong>GitHub issues a token.</strong> The workflow has permission
+            <code>id-token: write</code>, so GitHub gives it a token that says which repository
+            and branch the run belongs to. It is short-lived.</span>
+          </li>
+          <li>
+            <span><strong>Google checks it.</strong> The token goes to the identity pool
+            <code>github</code> and its provider <code>nordic-onboarding</code>, which only trust
+            tokens from GitHub and only accept one repository on one branch.</span>
+          </li>
+          <li>
+            <span><strong>Google lends an identity.</strong> If the check passes, the run gets
+            short-lived credentials for <code>github-deployer</code>, and only for that one.</span>
+          </li>
+          <li>
+            <span><strong>The credentials expire.</strong> Google's access lasts an hour at
+            most, by default. There is no long-lived key to rotate or to leak.</span>
+          </li>
+        </ol>
+      </div>
+      <p class="small">The provider's real condition, read from Google Cloud:</p>
+      <pre>assertion.repository == 'krishnapriya-venkatakrishnan/nordic-onboarding'
+  &amp;&amp; assertion.ref == 'refs/heads/main'</pre>
+      <div class="cols">
+        <div>
+          <h3>What a pull request can't do</h3>
+          <p>
+            A run for a pull request carries its own branch in the token, so the condition fails
+            and it can't sign in. Only code that has been merged into main can deploy.
+          </p>
+        </div>
+        <div>
+          <h3>What the workflows that don't need Google get</h3>
+          <p>
+            Nothing. The hourly synthetic sign-up only calls the public URL, so it has no Google
+            credentials at all.
+          </p>
+        </div>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/.github/workflows/ci.yml"
+          >ci.yml</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/.github/workflows/toggle-market.yml"
+          >toggle-market.yml</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 4 · Cloud</span><span></span></div>
+    </section>
+
+    <!-- Chapter 4, page 4: who may do what -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 4 · Cloud</span>
+      </div>
+      <h2>Who is allowed to do what</h2>
+      <p>Read from the project's permissions, not from memory:</p>
+      <div class="card boundaries boundaries--wide">
+        <dl>
+          <dt>github-deployer<code style="display: block; width: fit-content; margin-top: 1mm; font-weight: 400">CI on main</code></dt>
+          <dd>
+            <p>
+              <strong>Roles:</strong> <code>run.sourceDeveloper</code> and
+              <code>serviceusage.serviceUsageConsumer</code>, and it may act as
+              <code>nordic-build</code> and <code>nordic-run</code>.
+            </p>
+            <p>
+              <strong>So it can:</strong> deploy from source, move traffic between revisions, and
+              change <code>MARKETS_ENABLED</code>. <strong>It can't:</strong> change who has
+              access, make the service public or private, or touch monitoring.
+            </p>
+          </dd>
+          <dt>nordic-build<code style="display: block; width: fit-content; margin-top: 1mm; font-weight: 400">Cloud Build</code></dt>
+          <dd>
+            <p>
+              <strong>Role:</strong> <code>run.builder</code>. It builds the image and stores it.
+            </p>
+          </dd>
+          <dt>nordic-run<code style="display: block; width: fit-content; margin-top: 1mm; font-weight: 400">the app</code></dt>
+          <dd>
+            <p>
+              <strong>Roles:</strong> none. If the app were ever compromised, it couldn't call a
+              single Google Cloud API. Cloud Run collects its logs without the app needing any
+              permission.
+            </p>
+          </dd>
+          <dt>allUsers<code style="display: block; width: fit-content; margin-top: 1mm; font-weight: 400">the internet</code></dt>
+          <dd>
+            <p>
+              <strong>Role:</strong> <code>run.invoker</code>, on this one service. That is what
+              makes the demo public.
+            </p>
+          </dd>
+          <dt>Project owner<code style="display: block; width: fit-content; margin-top: 1mm; font-weight: 400">a person</code></dt>
+          <dd>
+            <p>
+              <strong>Role:</strong> <code>owner</code>. The changes CI is not allowed to make are
+              done by hand: applying monitoring with <code>infra/apply.sh</code>, granting
+              access, and making the service public.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <div class="ok">
+        <strong>Locked down.</strong> When the project was set up, Google gave its default compute
+        account the broad <code>editor</code> role. Nothing in this app used it: every build ran as
+        <code>nordic-build</code>, the service runs as <code>nordic-run</code>, and it had no keys.
+        So on 18 October 2026 the role was removed, and the account now has no roles at all.
+      </div>
+      <div class="folio"><span>Chapter 4 · Cloud</span><span></span></div>
+    </section>
+
+    <!-- Chapter 4, page 5: design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 4 · Cloud</span>
+      </div>
+      <h2>Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why Cloud Run?</dt>
+          <dd>
+            It runs a container without servers to manage, gives every revision its own address,
+            and splits traffic between revisions. That last part is what makes the no-traffic
+            release in Chapter 3 possible.
+          </dd>
+          <dt>Why europe-north1?</dt>
+          <dd>
+            It is in Finland, close to Nordic customers, and keeps the service in the EU.
+          </dd>
+          <dt>Why three identities instead of one?</dt>
+          <dd>
+            Each one can only do its own job. The identity that runs on every request, the app's,
+            has no permissions at all, so a bug in the app can't be turned into access to the
+            cloud project.
+          </dd>
+          <dt>Why not store a key in GitHub's secrets?</dt>
+          <dd>
+            A key works until someone revokes it, from anywhere, for anyone who has a copy. The
+            federated access lasts an hour at most, and only this repository's main branch can
+            get it.
+          </dd>
+          <dt>Why can't CI make the service public or change monitoring?</dt>
+          <dd>
+            So a compromised workflow could at worst deploy code that still has to pass the smoke
+            test. It couldn't open up access, or silence the alerts that would show something is
+            wrong.
+          </dd>
+          <dt>Why one warm instance, when Cloud Run can scale to zero?</dt>
+          <dd>
+            A cold start means waiting for Java to start. One warm instance keeps the demo quick,
+            and because the eID sessions live in memory, one copy of each version is also the
+            maximum.
+          </dd>
+        </dl>
+      </div>
+      <div class="folio"><span>Chapter 4 · Cloud</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 1: summary and the path of a log line -->
+    <section class="sheet" id="chapter-5">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <span class="eyebrow">Chapter 5</span>
+      <h1>Observability</h1>
+      <p class="chapter-sub">From a log line to an alert email</p>
+      <div class="card">
+        <p class="lead">
+          Every outcome in the flow becomes one JSON log line, with codes only and every ID
+          number masked. Cloud Logging counts those lines into a metric, and the metric feeds a
+          dashboard and an alert that emails when Denmark rejects too many applications.
+        </p>
+        <p class="lead">
+          An uptime check watches the health endpoint from three continents, an hourly synthetic
+          sign-up proves both markets still work, and a kill switch turns a market off in about a
+          minute. Everything is defined as code in the repository.
+        </p>
+      </div>
+      <figure class="diagram diagram--tall">
+        <pre class="mermaid">
+flowchart TB
+  EV["OnboardingService records an event<br/>DK, REVIEW, REJECTED, ID_UNDER_AGE"]
+  EV --> LINE["OnboardingLog writes one JSON line<br/>codes only, ID numbers masked"]
+  LINE --> CL["Cloud Logging<br/>reads the fields"]
+  CL --> MET["Log-based metric onboarding_events<br/>labels: market, step, outcome, reason, synthetic"]
+  MET --> DASH["Dashboard<br/>funnels and reasons"]
+  MET --> AL["Alert: Denmark rejection spike"]
+  UP["Uptime check<br/>/actuator/health every 5 minutes"] --> DOWN["Alert: the service is down"]
+  AL --> MAIL["Email, with what to do"]
+  DOWN --> MAIL
+        </pre>
+        <figcaption>One event's path, from the code to an inbox.</figcaption>
+      </figure>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 2: events and log lines -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>From an event to a log line</h2>
+      <p>
+        <code>OnboardingService</code> records an event at each outcome, through the
+        <code>OnboardingEvents</code> port from Chapter 2. An event holds codes only:
+      </p>
+      <div class="card">
+        <dl class="codes" style="grid-template-columns: 34mm 1fr">
+          <dt>VERIFIED</dt>
+          <dd>The eID login succeeded.</dd>
+          <dt>ID_REJECTED</dt>
+          <dd>
+            An ID-number check failed while typing, with a reason such as
+            <code>ID_UNDER_AGE</code> or <code>ID_CHECK_DIGIT</code>. One person can cause several.
+          </dd>
+          <dt>SUBMITTED</dt>
+          <dd>"Open account" was pressed.</dd>
+          <dt>ACCEPTED</dt>
+          <dd>The application passed every check.</dd>
+          <dt>REJECTED</dt>
+          <dd>It didn't, with the first failed check as its reason.</dd>
+        </dl>
+      </div>
+      <p>
+        <code>OnboardingLog</code> turns each event into one log line. In the container, the log
+        format is JSON in the shape Cloud Logging reads: <code>time</code>,
+        <code>severity</code>, <code>logger</code> and <code>message</code>, then the event's
+        fields. Cloud Logging stores it like this (a real line from the rehearsal):
+      </p>
+      <pre>{ <span class="k">"timestamp"</span>: "2026-10-17T15:21:22.954429030Z", <span class="k">"severity"</span>: "INFO",
+  <span class="k">"jsonPayload"</span>: { <span class="k">"logger"</span>: "onboarding", <span class="k">"message"</span>: "DK REVIEW REJECTED ID_UNDER_AGE",
+                   <span class="k">"market"</span>: "DK", <span class="k">"step"</span>: "REVIEW", <span class="k">"outcome"</span>: "REJECTED", <span class="k">"reason"</span>: "ID_UNDER_AGE" } }</pre>
+      <h2 style="margin-top: 5mm">No ID number reaches a log</h2>
+      <div class="cols" style="align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">Events can't carry one</h3>
+          <p>
+            They hold codes only. The request objects that do hold personal data print a
+            <code>toString()</code> that leaves it out, so an error trace can't show it either.
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">And every line is masked anyway</h3>
+          <p>
+            As a second line of defence, the log format replaces anything shaped like a Swedish or
+            Danish ID number with <code>[national ID masked]</code>, in messages, fields and stack
+            traces. It errs towards masking.
+          </p>
+        </div>
+      </div>
+      <pre><span class="c">// NationalIdMask: 6 or 8 digits, an optional - + or space, then 4 digits, not inside a longer number</span>
+Pattern.compile("(?&lt;!\\d)(?:\\d{2})?\\d{6}[-+ ]?\\d{4}(?!\\d)")</pre>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/logging/OnboardingLog.java"
+          >OnboardingLog.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/logging/CloudLoggingFormat.java"
+          >CloudLoggingFormat.java</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/main/java/dev/krishnapriya/onboarding/logging/NationalIdMask.java"
+          >NationalIdMask.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 3: lines to numbers -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>From log lines to numbers</h2>
+      <p>
+        A log-based metric counts matching log lines, and turns chosen fields into labels that
+        charts and alerts can filter and group by. The whole definition lives in
+        <code>infra/metrics/onboarding_events.json</code>:
+      </p>
+      <pre><span class="k">"filter"</span>: "resource.type=\"cloud_run_revision\"
+           AND resource.labels.service_name=\"nordic-onboarding\"
+           AND jsonPayload.logger=\"onboarding\"",
+<span class="k">"labelExtractors"</span>: {
+  <span class="k">"market"</span>: "EXTRACT(jsonPayload.market)",   <span class="k">"step"</span>: "EXTRACT(jsonPayload.step)",
+  <span class="k">"outcome"</span>: "EXTRACT(jsonPayload.outcome)", <span class="k">"reason"</span>: "EXTRACT(jsonPayload.reason)",
+  <span class="k">"synthetic"</span>: "EXTRACT(jsonPayload.synthetic)" }</pre>
+      <p class="small">Shortened for the page; the file also describes each label.</p>
+
+      <h3>Test traffic is tagged, and left out</h3>
+      <p>
+        The hourly synthetic sign-up sends the header <code>X-Synthetic-Check: true</code>.
+        <code>SyntheticTrafficFilter</code> adds <code>synthetic: "true"</code> to every log line
+        of that request, so it becomes a label too. Every chart and alert then filters on
+        <code>metric.label.synthetic!="true"</code>. Without that, test sign-ups would show up as
+        customers, and would hide a real spike in Denmark's rejection rate.
+      </p>
+
+      <h3>The config can't drift from the code</h3>
+      <div class="card">
+        <p>Contract tests read <code>infra/</code> on every build and fail if:</p>
+        <ul>
+          <li>a chart or alert uses a label the metric doesn't have</li>
+          <li>it filters on an outcome, reason or market the app never writes</li>
+          <li>a chart or alert would count synthetic traffic</li>
+          <li>
+            a chart is changed back to a line chart. The charts are bars on purpose: with one data
+            point an hour, a line chart stays blank
+          </li>
+          <li>the Denmark alert stops comparing <code>REJECTED</code> with <code>SUBMITTED</code></li>
+        </ul>
+      </div>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/tree/main/infra"
+          >infra/</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/backend/src/test/java/dev/krishnapriya/onboarding/logging/MonitoringConfigContractTest.java"
+          >MonitoringConfigContractTest.java</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 4: the dashboard -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>The dashboard</h2>
+      <p>
+        Sweden and Denmark side by side, so a launch problem in one market stands out against the
+        other. The dashboard is a JSON file in <code>infra/dashboards/</code>.
+      </p>
+      <figure>
+        <img src="../dashboard.png" alt="The Cloud Monitoring dashboard during the rehearsal" />
+        <figcaption>
+          During the rehearsal: Sweden's two accepted applications, Denmark's six rejections, and
+          the reason behind them, <code>ID_UNDER_AGE</code>.
+        </figcaption>
+      </figure>
+      <div class="cols">
+        <ul class="small">
+          <li><strong>Last 24 hours, per market:</strong> the funnel as numbers, from verified to accepted or rejected.</li>
+          <li><strong>Applications per hour, per market:</strong> bars of accepted and rejected.</li>
+        </ul>
+        <ul class="small">
+          <li><strong>Rejection reasons per hour:</strong> by market and reason.</li>
+          <li><strong>Rejection reasons, last 24 hours:</strong> as a table.</li>
+        </ul>
+      </div>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 5: the alerts -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>Two alerts, both by email</h2>
+      <div class="cols cols--side" style="grid-template-columns: 1fr 66mm">
+        <div>
+          <div class="card">
+            <h3 style="margin-top: 0">"Nordic Onboarding is down"</h3>
+            <p>
+              An uptime check calls <code>/actuator/health</code> every 5 minutes from Europe, the
+              USA and Asia Pacific. It passes on a 2xx answer that contains
+              <code>"status":"UP"</code>. The alert fires when the check fails from 2 or more
+              locations, so one bad network path doesn't wake anyone.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top: 0">"Denmark: rejection spike"</h3>
+            <p>Two conditions, and both must hold over the last 30 minutes:</p>
+            <ol class="checks">
+              <li><span>More than half of Denmark's submitted applications were rejected.</span></li>
+              <li><span>At least 5 were submitted.</span></li>
+            </ol>
+            <p class="small">
+              The second condition stops one rejected application out of one, at night, from
+              counting as a spike. The email includes what to do next.
+            </p>
+          </div>
+          <div class="note">
+            <strong>The address isn't in the repository.</strong> The repository is public, so
+            the email address is passed to <code>infra/apply.sh</code> when it runs, never
+            written to a file.
+          </div>
+        </div>
+        <figure>
+          <img src="../alert.png" alt="The alert email from the rehearsal" />
+          <figcaption>The rehearsal's alert email: 6 of 7 rejected. The project ID is masked.</figcaption>
+        </figure>
+      </div>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 6: the incident loop, rehearsed -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>The incident loop, rehearsed</h2>
+      <p>
+        On 17 October 2026, the whole loop was run against production. The times are Swedish
+        time.
+      </p>
+      <div class="card boundaries">
+        <dl>
+          <dt>17:19</dt>
+          <dd><p>A real Danish application, made by hand, is accepted.</p></dd>
+          <dt>17:21</dt>
+          <dd>
+            <p>
+              Six Danish applications with an under-18 CPR number are sent with curl, skipping the
+              browser. The server rejects all six: <code>422</code>, <code>ID_UNDER_AGE</code>.
+            </p>
+          </dd>
+          <dt>17:25</dt>
+          <dd>
+            <p>
+              The "Denmark: rejection spike" alert opens and emails: 6 of 7 rejected, 86%, with 7
+              submitted.
+            </p>
+          </dd>
+          <dt>By 18:05</dt>
+          <dd>
+            <p>
+              The 30-minute window has moved past the rejections, so the alert closes by itself
+              and sends a "recovered" email.
+            </p>
+          </dd>
+          <dt>That evening</dt>
+          <dd>
+            <p>
+              The kill switch: Actions → <strong>toggle market</strong> → <code>SE</code>. The run
+              reports "Live markets changed from SE,DK to SE", and Denmark answers 404 while
+              Sweden keeps working. Then <strong>toggle market</strong> → <code>SE,DK</code>, and
+              Denmark answers again.
+            </p>
+          </dd>
+        </dl>
+      </div>
+      <div class="note">
+        <strong>"Recovered" means the spike stopped, not that Denmark was fixed.</strong> A
+        switched-off market gets no applications, so the alert closes by itself either way. So the
+        order matters: Denmark is fixed first, the fix is released while Denmark stays off, and only
+        then does a person switch it back on. That works because a release never changes
+        <code>MARKETS_ENABLED</code>: releasing the fix can't switch Denmark on by itself.
+      </div>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 7: synthetic sign-up, kill switch, monitoring as code -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>Checks that run without anyone watching</h2>
+      <div class="cols" style="align-items: stretch">
+        <div class="card">
+          <h3 style="margin-top: 0">The hourly synthetic sign-up</h3>
+          <p>
+            A scheduled GitHub workflow runs at 23 minutes past every hour. For each live market it
+            does what a customer does: logs in, checks the demo ID number, and opens an account.
+            If any market can't open one, the workflow fails and GitHub shows it.
+          </p>
+          <p class="small">It uses only the public URL, and its requests are tagged synthetic.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top: 0">The kill switch</h3>
+          <p>
+            The "toggle market" workflow offers three choices: <code>SE,DK</code>,
+            <code>SE</code> or <code>DK</code>. It sets <code>MARKETS_ENABLED</code> on Cloud Run,
+            which starts a new revision from the same image, moves traffic to it, and then checks
+            that each market is live or dark as asked.
+          </p>
+          <p class="small">
+            It takes about a minute, because no code is built: it only changes a setting. It waits
+            in the same queue as releases, so a release running at the same time can't undo it.
+          </p>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 5mm">Monitoring as code</h2>
+      <p>
+        <code>infra/</code> holds the metric, the dashboard, the uptime check and both alerts as
+        JSON. <code>infra/apply.sh PROJECT_ID ALERT_EMAIL</code> creates or updates them, in the
+        order they depend on each other, and is safe to run again:
+      </p>
+      <div class="card">
+        <ol class="checks">
+          <li><span>the log-based metric</span></li>
+          <li><span>the dashboard, matched to the live one by its title</span></li>
+          <li><span>the email channel, found by its address</span></li>
+          <li><span>the uptime check, pointed at the live service</span></li>
+          <li><span>the alert policies, linked to the channel and the check</span></li>
+        </ol>
+      </div>
+      <p class="small">
+        The project's owner runs it by hand. CI's deployer is deliberately not allowed to change
+        monitoring.
+      </p>
+      <p class="look">
+        Where to look:
+        <a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/infra/apply.sh"
+          >apply.sh</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/.github/workflows/synthetic.yml"
+          >synthetic.yml</a
+        ><a
+          href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding/blob/main/scripts/toggle-markets.sh"
+          >toggle-markets.sh</a
+        >
+      </p>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <!-- Chapter 5, page 8: design decisions -->
+    <section class="sheet">
+      <div class="running">
+        <span class="brand"><span class="mark"></span>Nordic Onboarding · A technical guide</span>
+        <span>Chapter 5 · Observability</span>
+      </div>
+      <h2>Design decisions</h2>
+      <div class="card">
+        <dl class="qa">
+          <dt>Why metrics from log lines, instead of a metrics library?</dt>
+          <dd>
+            The events are already written as structured logs, so Cloud Logging can count them
+            with no extra library, agent or endpoint. The metric's definition lives in the
+            repository like everything else.
+          </dd>
+          <dt>Why a rejection rate with a minimum count, not a plain count?</dt>
+          <dd>
+            A count grows with traffic, so it would fire on a busy, healthy day. A rate alone
+            would fire on one rejection out of one. Together they mean "most of a real number of
+            applications failed".
+          </dd>
+          <dt>Why is switching a market off a manual step, not automatic?</dt>
+          <dd>
+            Many rejections can be a bug, or just people typing the wrong number. A person
+            decides, and the alert email says how. Switching a healthy market off by mistake would
+            cost real customers.
+          </dd>
+          <dt>Why mask ID numbers by pattern, when events never contain them?</dt>
+          <dd>
+            Defence in depth. A future log line, an exception message or a library could include
+            one by accident. The pattern catches it in every line.
+          </dd>
+          <dt>Why test traffic in production at all?</dt>
+          <dd>
+            It proves the real thing works, every hour, including the eID step and both markets.
+            Tagging keeps it out of the numbers that describe customers.
+          </dd>
+        </dl>
+      </div>
+      <div class="note">
+        <strong>Limits.</strong> Alerts go by email only, the service runs in one region, and
+        Cloud Logging keeps logs for its default 30 days.
+      </div>
+      <div class="folio"><span>Chapter 5 · Observability</span><span></span></div>
+    </section>
+
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+
+      // Diagram colours follow the app: white boxes, slate-blue lines, Inter.
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        fontFamily: 'Inter, sans-serif',
+        themeVariables: {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+          primaryColor: '#ffffff',
+          primaryTextColor: '#1c2230',
+          primaryBorderColor: '#4a5a86',
+          lineColor: '#4a5a86',
+          secondaryColor: '#e6eaf3',
+          tertiaryColor: '#f4f6fa',
+          actorBkg: '#ffffff',
+          actorBorder: '#4a5a86',
+          actorTextColor: '#1c2230',
+          actorLineColor: '#c9d0dc',
+          signalColor: '#4a5a86',
+          signalTextColor: '#1c2230',
+          labelBoxBkgColor: '#e6eaf3',
+          labelBoxBorderColor: '#e6eaf3',
+          labelTextColor: '#4a5a86',
+          loopTextColor: '#4a5a86',
+          sequenceNumberColor: '#ffffff',
+          edgeLabelBackground: '#ffffff',
+          noteBkgColor: '#e6eaf3',
+          noteBorderColor: '#e6eaf3',
+          noteTextColor: '#4a5a86',
+        },
+        sequence: { mirrorActors: false, messageMargin: 26, boxMargin: 8 },
+        flowchart: { curve: 'basis', padding: 12, nodeSpacing: 26, rankSpacing: 32 },
+      });
+      // Page numbers follow the order of the pages, so adding one can't leave them wrong.
+      const sheets = [...document.querySelectorAll('.sheet')];
+      sheets.forEach((sheet, i) => {
+        const number = sheet.querySelector('.folio span:last-child');
+        if (number && i > 0) number.textContent = String(i + 1);
+      });
+      document.querySelectorAll('[data-page-of]').forEach((el) => {
+        el.textContent = 'page ' + (sheets.indexOf(document.getElementById(el.dataset.pageOf)) + 1);
+      });
+
+      // The build script waits for guideReady, and stops with guideError if a diagram is wrong.
+      try {
+        await document.fonts.ready;
+        await mermaid.run({ querySelector: '.mermaid' });
+        await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
+        window.guideReady = true;
+      } catch (e) {
+        window.guideError = String(e?.message ?? e);
+      }
+    </script>
+  </body>
+</html>

@@ -100,6 +100,27 @@ describe('App shell', () => {
     );
   });
 
+  it('says when a market was switched off after the page loaded, and recovers on another', async () => {
+    const fixture = start();
+    http.expectOne('/api/markets/SE/onboarding').flush(SE);
+    await fixture.whenStable();
+
+    button(fixture, 'Denmark').click();
+    http
+      .expectOne('/api/markets/DK/onboarding')
+      .flush({ detail: 'Market not available: DK' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+    expect(page(fixture).querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+      "This market isn't available right now.",
+    );
+
+    button(fixture, 'Sweden').click();
+    http.expectOne('/api/markets/SE/onboarding').flush(SE);
+    await fixture.whenStable();
+    expect(page(fixture).querySelector('[role="alert"]')).toBeNull();
+    expect(heading(fixture)).toBe('Open an account · Sweden');
+  });
+
   it('says so when the API cannot be reached', async () => {
     const fixture = TestBed.createComponent(App);
     http.expectOne('/api/markets').flush(null, { status: 504, statusText: 'Gateway Timeout' });

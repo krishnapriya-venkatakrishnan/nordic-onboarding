@@ -11,6 +11,8 @@ This is the account opening flow for a Nordic savings and investment platform th
 **Stack:** Angular 21 (standalone components, signals, installable PWA) · Java 25 / Spring Boot 4.1 · GitHub Actions · Google Cloud Run · Cloud Logging and Monitoring
 
 > **Reviewing the code? Start with these five files (about 5 minutes):** [`Market.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/Market.java) (the contract every market plugs into) → [`DenmarkMarket.java`](backend/src/main/java/dev/krishnapriya/onboarding/markets/dk/DenmarkMarket.java) (Denmark's data in one file, with its ID rule next to it) → [`OnboardingService.java`](backend/src/main/java/dev/krishnapriya/onboarding/domain/OnboardingService.java) (the shared rules, written once) → [`MarketContractTest.java`](backend/src/test/java/dev/krishnapriya/onboarding/domain/MarketContractTest.java) (what every new market must pass) → [`onboarding-flow.ts`](frontend/src/app/onboarding/onboarding-flow.ts) (the screens, with no country-specific code)
+>
+> Want the long version? **[The technical guide (PDF, 41 pages)](docs/nordic-onboarding-guide.pdf)**, chapter by chapter, with diagrams and real API answers.
 
 ## The problem
 
@@ -47,7 +49,7 @@ flowchart LR
   LOG --> CL["Cloud Logging → metric<br/>→ dashboard · alerts"]
 ```
 
-- **The domain is plain Java.** The code in `backend/.../domain` has no Spring or logging imports, so it can be tested without starting anything. An ArchUnit test fails the build if that changes, or if one market starts to depend on another.
+- **The domain is plain Java.** The code in `backend/.../domain` has no Spring or logging imports, so it can be tested without starting anything. ArchUnit tests fail the build if that changes, if a market uses anything but Java and the domain, or if one market starts to depend on another.
 - **The shared rules live in one place.** `OnboardingService` checks the same things in every market: a verified identity, a valid ID number, the minimum age, an account type the market offers, and the required confirmations. A market only says how to read its own ID number. The age rule itself is written once.
 - **Rules are data.** Denmark's deposit cap is a map from year to amount (`2025 → 166,200`, `2026 → 174,200`), not an `if` statement. Adding a new year's cap means adding one entry.
 - **Time comes from an injected clock, read in each market's own time zone.** So an 18th birthday and a new year's cap both start at local midnight, and tests can set "today" to any date.
@@ -77,7 +79,7 @@ flowchart LR
   S -->|fail| X["Customers stay on<br/>the current revision"]
 ```
 
-- **Every change is tested before it reaches main.** CI runs four jobs. The **backend** job runs 114 tests, including ArchUnit and the contract tests. The **frontend** job runs 36 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as a non-root user, writes JSON logs, completes a synthetic sign-up in both markets, can be installed as a PWA, and goes dark for a market that is switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
+- **Every change is tested before it reaches main.** CI runs four jobs. The **backend** job runs 115 tests, including ArchUnit and the contract tests. The **frontend** job runs 37 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as a non-root user, writes JSON logs, completes a synthetic sign-up in both markets, can be installed as a PWA, and goes dark for a market that is switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
 - **A green main deploys by itself.** GitHub signs in to Google Cloud with Workload Identity Federation, so no keys are stored anywhere, and only this repository's main branch is allowed to deploy. Three separate identities do the work: one deploys, one builds the image, and the app itself runs as one with no permissions at all.
 - **Each release is tested privately first.** A new version gets no traffic until its own tagged address passes the smoke test, so a broken build never reaches customers. During a real release, a script called the live API every 2 seconds for 3 minutes and got 86 successful answers out of 86.
 - **Rolling back is one command**, with no rebuild: `gcloud run services update-traffic nordic-onboarding --to-revisions=<previous>=100`.
@@ -108,7 +110,7 @@ flowchart LR
 |---|---|
 | `PersonnummerRuleTest`, `CprRuleTest` | formats, century rules, check digits, coordination numbers, impossible and future dates, reason codes |
 | `OnboardingServiceTest` | deposit cap by year, product-specific confirmations, eID session bound to its market and used once, minimum age to the day and at local midnight, events with reasons |
-| `MarketContractTest`, `ArchitectureTest` | the rules every market must follow; the domain stays framework-free and markets stay independent |
+| `MarketContractTest`, `ArchitectureTest` | the rules every market must follow; the domain and the markets stay framework-free, and markets stay independent |
 | `MarketRegistryTest` | dark markets, and duplicate codes caught even while a market is dark |
 | `MarketApiTest`, `UptimeCheckContractTest` | the HTTP contract (404 for dark markets, 422 with field errors, problem details); the health check answers what Google's uptime check expects |
 | `CloudLoggingFormatTest`, `StructuredLoggingTest`, `NationalIdMaskTest` | JSON in Cloud Logging's format; ID numbers masked in messages, fields and stack traces |

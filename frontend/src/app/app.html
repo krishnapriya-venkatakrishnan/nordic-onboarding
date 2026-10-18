@@ -4,123 +4,36 @@
     <span>Nordic Onboarding</span>
     <span class="brand__tag">demo</span>
   </div>
-  <div class="top__actions">
-    <button
-      #infoButton
-      type="button"
-      class="info-toggle"
-      [attr.aria-expanded]="infoOpen()"
-      aria-controls="demo-info"
-      (click)="toggleInfo()"
-    >
-      <span class="info-toggle__icon" aria-hidden="true">i</span>
-      How this demo works
-    </button>
-    @if (markets().length) {
-      <div class="switch" role="group" aria-label="Market">
-        @for (m of markets(); track m.code) {
-          <button
-            type="button"
-            [attr.aria-pressed]="selected() === m.code"
-            [class.switch--on]="selected() === m.code"
-            (click)="choose(m.code)"
-          >
-            <span class="switch__code" aria-hidden="true">{{ m.code }}</span> {{ m.displayName }}
-          </button>
-        }
-      </div>
-    }
-  </div>
+  @if (markets().length) {
+    <div class="switch" role="group" aria-label="Market">
+      @for (m of markets(); track m.code) {
+        <button
+          type="button"
+          [attr.aria-pressed]="selected() === m.code"
+          [class.switch--on]="selected() === m.code"
+          (click)="choose(m.code)"
+        >
+          <span class="switch__code" aria-hidden="true">{{ m.code }}</span> {{ m.displayName }}
+        </button>
+      }
+    </div>
+  }
 </header>
 
-<div class="page" [class.page--info]="infoOpen() && config()">
-  <main class="layout">
-    @if (loadError()) {
-      <section class="card notice notice--error" role="alert">
-        Couldn't reach the API. Is the backend running on port 8080?
-      </section>
-    } @else if (config(); as c) {
-      <div class="hero">
-        <p class="eyebrow">Open an account · {{ c.displayName }}</p>
-        <h1>Start investing in a few minutes</h1>
-      </div>
-      <app-onboarding-flow [config]="c" />
-    } @else {
-      <p class="loading" role="status">Loading markets…</p>
-    }
-  </main>
-
-  <!-- Notes for visitors about the demo. Kept out of the customer's flow, shown only when asked. -->
-  @if (infoOpen() && config(); as c) {
-    <section id="demo-info" class="info" aria-labelledby="demo-info-title">
-      <div class="info__head">
-        <h2 id="demo-info-title" tabindex="-1">How this demo works</h2>
-        <button type="button" class="info__close" aria-label="Close" (click)="closeInfo()">
-          ×
-        </button>
-      </div>
-      <p class="info__intro">
-        {{ marketNames() }} run the same code. Switch country above: only these settings change.
-      </p>
-
-      <h3>What {{ c.displayName }} plugs in</h3>
-      <dl class="facts">
-        <div>
-          <dt>eID</dt>
-          <dd>{{ c.identityProvider.displayName }}</dd>
-        </div>
-        <div>
-          <dt>ID number</dt>
-          <dd>
-            {{ c.nationalId.label }} <code>{{ c.nationalId.placeholder }}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>Money</dt>
-          <dd>
-            {{ c.currency }} · <code>{{ c.locale }}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>Accounts</dt>
-          <dd>
-            @for (p of c.products; track p.id) {
-              <span class="product">
-                <span class="product__name" [attr.lang]="c.locale">{{ p.name }}</span>
-                @if (p.depositCap !== null) {
-                  <span class="product__meta">cap {{ money(p.depositCap, c) }} / year</span>
-                }
-                @if (extraConfirmations(c, p.id); as n) {
-                  <span class="product__meta">+{{ n }} confirmation{{ n === 1 ? '' : 's' }}</span>
-                }
-              </span>
-            }
-          </dd>
-        </div>
-      </dl>
-
-      <h3>Same in every market</h3>
-      <ul class="same">
-        <li>One codebase: this page, the API and the onboarding rules</li>
-        <li>The step screens. A market picks which steps it uses; the screens are shared.</li>
-        <li>
-          The checks every application must pass: a verified identity, a valid ID number, the
-          minimum age, an offered account and its confirmations. The server runs them again before
-          an account opens.
-        </li>
-      </ul>
-
-      <p class="info__foot">
-        Portfolio demo · not a bank · rules are illustrative, not legal or tax text · nothing is
-        stored
-      </p>
-      <a
-        class="info__repo"
-        href="https://github.com/krishnapriya-venkatakrishnan/nordic-onboarding"
-        target="_blank"
-        rel="noopener"
-        >Source on GitHub ↗</a
-      >
+<main class="layout">
+  @if (loadError()) {
+    <section class="card notice notice--error" role="alert">
+      Couldn't reach the server. Check your connection and try again.
     </section>
+  } @else if (config(); as c) {
+    <div class="hero">
+      <p class="eyebrow">Open an account · {{ c.displayName }}</p>
+      <h1>Start investing in a few minutes</h1>
+    </div>
+    <app-onboarding-flow [config]="c" />
+  } @else {
+    <p class="loading" role="status">Loading markets…</p>
   }
-</div>
+</main>
+
+<footer class="foot">Portfolio demo · not a bank · rules are illustrative</footer>

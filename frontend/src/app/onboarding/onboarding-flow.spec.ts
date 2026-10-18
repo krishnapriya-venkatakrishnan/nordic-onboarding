@@ -246,9 +246,11 @@ describe('OnboardingFlow', () => {
         productId: 'depot',
         acceptedDisclosures: ['terms'],
       });
-      expect(text()).toContain('Demo application complete');
-      expect(text()).toContain('No account was opened and nothing was saved.');
+      expect(text()).toContain('Application accepted');
+      expect(text()).toContain('This is a demo, so no account was opened and nothing was saved.');
       expect(text()).toContain('APP-1234ABCD');
+      expect(text()).toContain('Depot (frie midler)');
+      expect(text()).toContain('DKK');
 
       click(button('Start a new application'));
       expect(button('Continue with MitID')).toBeTruthy();
@@ -298,7 +300,7 @@ describe('OnboardingFlow', () => {
       fixture.detectChanges();
 
       expect(late.observed).toBe(false);
-      expect(text()).not.toContain('Demo application complete');
+      expect(text()).not.toContain('Application accepted');
       expect(button('Continue with BankID')).toBeTruthy();
     });
   });
@@ -410,11 +412,11 @@ describe('OnboardingFlow', () => {
       );
       await toReview();
       click(button('Open account'));
-      expect(text()).toContain('Demo application complete');
+      expect(text()).toContain('Application accepted');
 
       show(SE);
 
-      expect(text()).not.toContain('Demo application complete');
+      expect(text()).not.toContain('Application accepted');
       expect(button('Continue with BankID')).toBeTruthy();
     });
   });

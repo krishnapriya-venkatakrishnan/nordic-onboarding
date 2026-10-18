@@ -28,7 +28,7 @@ This repo takes the other path. The flow is written once against a `Market` inte
 | Account types | Investeringssparkonto (ISK), Aktie- och fondkonto | Aktiesparekonto (one per person; deposit cap 166,200 DKK for 2025 and 174,200 DKK for 2026, per skat.dk), Depot |
 | Product-specific confirmations | none | Aktiesparekonto: "no other Aktiesparekonto", "fully tax liable to Denmark" |
 
-In the app, **How this demo works** opens a panel beside the flow. Its "What Denmark plugs in" list *is* that configuration, and the flow next to it is the same code for both.
+In the app, switching between Sweden and Denmark changes exactly what this table lists, on the same screens: the eID, the ID-number field, the currency and the account types.
 
 ![Sweden: the same flow, configured by another market](docs/sweden-identity.png)
 
@@ -77,7 +77,7 @@ flowchart LR
   S -->|fail| X["Customers stay on<br/>the current revision"]
 ```
 
-- **Every change is tested before it reaches main**, in four jobs. The **backend** runs 114 tests, including ArchUnit and the contract tests; the **frontend** runs 38 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as non-root, logs JSON, completes a synthetic sign-up in both markets, can be installed as a PWA, and goes dark for a market that's switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
+- **Every change is tested before it reaches main**, in four jobs. The **backend** runs 114 tests, including ArchUnit and the contract tests; the **frontend** runs 36 tests and a production build. The **container** job builds the real image and checks that it starts, passes the smoke test, runs as non-root, logs JSON, completes a synthetic sign-up in both markets, can be installed as a PWA, and goes dark for a market that's switched off. The **scripts** job tests the release and kill-switch logic against a fake `gcloud`.
 - **Green main ships by itself.** GitHub signs in to Google with Workload Identity Federation: no stored keys, and only this repo's main branch can deploy. Three narrow identities do the work: one deploys, one builds the image, and the app runs as one with no permissions at all.
 - **Releases are tested in private first.** A new version gets no traffic until its own tagged address passes the smoke test, so a broken build never reaches customers. During a real release, a script calling the live API every 2 seconds got 86 out of 86 successful answers over 3 minutes.
 - **Rolling back is one command**, with no rebuild: `gcloud run services update-traffic nordic-onboarding --to-revisions=<previous>=100`.
@@ -135,7 +135,7 @@ Or as one container: `docker build -t nordic-onboarding . && docker run -p 8080:
 
 I built this pair-programming with Claude Code, one numbered step at a time. Each step was its own commit with its tests, pushed and checked by CI, and reviewed by me before merging. Claude drafted code and tests from a reference copy; I reviewed the diffs, asked questions until I understood them, and made the design calls. Most fixes were first shown failing in a test, and most new tests were checked by breaking the code they guard.
 
-What I caught myself: the market panel repeated the same facts for both countries, so I asked for the page to be redesigned around a single "How this demo works" panel. And a dashboard that looked wrong to me turned out to have hourly charts that stayed blank at low traffic; they're now bar charts.
+What I caught myself: a panel explaining each market repeated the same facts for both countries and pulled attention away from the product, so I had it removed; the app now shows only the onboarding flow. And a dashboard that looked wrong to me turned out to have hourly charts that stayed blank at low traffic; they're now bar charts.
 
 The assistant flagged these problems along the way. I checked what each one would have done to a customer before accepting the fix, and made the call where there was a choice:
 

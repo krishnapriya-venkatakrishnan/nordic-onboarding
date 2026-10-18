@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
@@ -19,7 +20,8 @@ export class App {
   /** The market last clicked. The config follows it once it has loaded. */
   protected readonly selected = signal<string | null>(null);
   protected readonly config = signal<MarketConfig | null>(null);
-  protected readonly loadError = signal(false);
+  /** Why no market can be shown: no answer from the server, or the market has been switched off. */
+  protected readonly loadError = signal<'unreachable' | 'unavailable' | null>(null);
 
   constructor() {
     // switchMap drops a slower, older response, so quick switching always ends on the last click.
@@ -27,15 +29,20 @@ export class App {
       .pipe(
         switchMap((code) =>
           this.api.config(code).pipe(
-            catchError(() => {
-              this.loadError.set(true);
+            catchError((e: HttpErrorResponse) => {
+              // 404: the server answered, but the market was switched off after the page loaded.
+              this.loadError.set(e.status === 404 ? 'unavailable' : 'unreachable');
               return EMPTY;
             }),
           ),
         ),
         takeUntilDestroyed(),
       )
-      .subscribe((c) => this.config.set(c));
+      .subscribe((c) => {
+        // Choosing another market after an error shows that market again.
+        this.loadError.set(null);
+        this.config.set(c);
+      });
 
     this.api.markets().subscribe({
       next: (list) => {
@@ -45,7 +52,7 @@ export class App {
         const start = list.find((m) => m.code === fromHash) ?? list[0];
         if (start) this.choose(start.code);
       },
-      error: () => this.loadError.set(true),
+      error: () => this.loadError.set('unreachable'),
     });
   }
 

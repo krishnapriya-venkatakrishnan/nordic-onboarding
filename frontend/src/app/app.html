@@ -21,9 +21,13 @@
 </header>
 
 <main class="layout">
-  @if (loadError()) {
+  @if (loadError(); as error) {
     <section class="card notice notice--error" role="alert">
-      Couldn't reach the server. Check your connection and try again.
+      @if (error === 'unavailable') {
+        This market isn't available right now.
+      } @else {
+        Couldn't reach the server. Check your connection and try again.
+      }
     </section>
   } @else if (config(); as c) {
     <div class="hero">

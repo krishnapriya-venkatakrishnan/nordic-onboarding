@@ -23,4 +23,14 @@ class ArchitectureTest {
     static final ArchRule marketsAreIndependent = slices()
             .matching("dev.krishnapriya.onboarding.markets.(*)..")
             .should().notDependOnEachOther();
+
+    /**
+     * Rule 3: markets are plain Java too, using only Java and the domain. Spring meets them in one
+     * place, config/MarketWiring, so a market stays data and parsing rules, not framework code.
+     */
+    @ArchTest
+    static final ArchRule marketsArePlainJava = classes()
+            .that().resideInAPackage("dev.krishnapriya.onboarding.markets..")
+            .should().onlyDependOnClassesThat().resideInAnyPackage(
+                    "java..", "dev.krishnapriya.onboarding.domain..", "dev.krishnapriya.onboarding.markets..");
 }

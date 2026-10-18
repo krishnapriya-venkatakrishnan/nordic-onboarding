@@ -29,41 +29,6 @@
   border-radius: 999px;
   padding: 0 0.45rem;
 }
-.top__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-/* Quiet on purpose: it opens notes about the demo, not a step of the flow. */
-.info-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  border: 1px solid var(--line);
-  background: var(--surface-soft);
-  color: var(--ink-2);
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-.info-toggle[aria-expanded='true'] {
-  background: var(--accent-soft);
-  border-color: transparent;
-  color: var(--accent);
-}
-.info-toggle__icon {
-  width: 1.1rem;
-  height: 1.1rem;
-  display: grid;
-  place-items: center;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  font-size: 0.68rem;
-  font-weight: 600;
-}
 
 .switch {
   display: inline-flex;
@@ -92,21 +57,11 @@
   margin-right: 0.2rem;
 }
 
-/* The product: the flow, centred. The notes panel joins it as a second column when opened. */
-.page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem 3rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2rem;
-  align-items: start;
-}
+/* The product only: the flow, centred. */
 .layout {
-  width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding-top: 1.25rem;
+  padding: 1.25rem 1rem 2rem;
 }
 .hero {
   text-align: center;
@@ -115,159 +70,18 @@
 .loading {
   color: var(--ink-2);
 }
-
-.info {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1.1rem 1.25rem 1.25rem;
-}
-.info__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.info h2 {
-  font-size: 1.15rem;
-  font-weight: 400;
-  margin: 0;
-}
-.info__close {
-  border: 0;
-  background: none;
+/* The only on-screen note that the rules aren't real; ink-2 keeps it readable on the darker bottom. */
+.foot {
+  text-align: center;
+  font-size: 0.8rem;
   color: var(--ink-2);
-  font-size: 1.4rem;
-  line-height: 1;
-  padding: 0.2rem 0.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.info__close:hover {
-  background: var(--quiet);
-}
-.info__intro {
-  color: var(--ink-2);
-  font-size: 0.88rem;
-  margin: 0.4rem 0 0;
-}
-.info h3 {
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-3);
-  margin: 1.25rem 0 0.5rem;
-}
-.facts {
-  margin: 0;
-  display: grid;
-  gap: 0.55rem;
-}
-.facts > div {
-  display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  gap: 0.75rem;
-}
-.facts dt {
-  color: var(--ink-3);
-  font-size: 0.86rem;
-}
-.facts dd {
-  margin: 0;
-  font-size: 0.9rem;
-}
-.facts code {
-  background: var(--quiet);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 0.3rem;
-  white-space: nowrap;
-}
-.product {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.5rem;
-}
-.product + .product {
-  margin-top: 0.3rem;
-}
-.product__name {
-  font-weight: 500;
-}
-.product__meta {
-  font-size: 0.78rem;
-  color: var(--accent);
-}
-.same {
-  margin: 0;
-  padding-left: 1.1rem;
-  display: grid;
-  gap: 0.3rem;
-  color: var(--ink-2);
-  font-size: 0.86rem;
-}
-.info__foot {
-  color: var(--ink-3);
-  font-size: 0.78rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
-  margin: 1.25rem 0 0.5rem;
-}
-.info__repo {
-  color: var(--accent);
-  font-size: 0.86rem;
-  font-weight: 500;
-}
-
-/* Wide screens: the notes sit beside the flow, which moves left to make room. */
-@media (min-width: 1100px) {
-  .page--info {
-    grid-template-columns: minmax(0, 1fr) 360px;
-  }
-  .info {
-    position: sticky;
-    top: 1rem;
-    margin-top: 1.25rem;
-    /* Scrolls on its own, so the link at the end stays reachable on a short window. */
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-  }
-}
-
-/* Narrower screens: the notes rise as a sheet from the bottom; the switcher stays usable. */
-@media (max-width: 1099px) {
-  .info {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-    max-width: 720px;
-    max-height: 70vh;
-    margin: 0 auto;
-    overflow-y: auto;
-    border-radius: var(--radius) var(--radius) 0 0;
-    box-shadow: 0 -8px 30px rgb(28 34 48 / 0.18);
-  }
-  .info::before {
-    content: '';
-    display: block;
-    width: 2.5rem;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--line);
-    margin: -0.3rem auto 0.7rem;
-  }
+  padding: 0 1rem 2rem;
 }
 
 @media (max-width: 560px) {
   .top {
     padding: 0.9rem 1rem 0.4rem;
   }
-  .top__actions,
   .switch {
     width: 100%;
   }

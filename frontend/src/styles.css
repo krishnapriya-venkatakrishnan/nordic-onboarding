@@ -62,8 +62,7 @@ h2 {
 h2[tabindex='-1']:focus {
   outline: none;
 }
-code,
-.mono {
+code {
   font-family: var(--mono);
   font-size: 0.88em;
 }
@@ -392,6 +391,10 @@ button {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--line);
 }
+/* Lines go between rows only; under the last one it would double the divider above the buttons. */
+.summary > div:last-child {
+  border-bottom: 0;
+}
 .summary dt {
   color: var(--ink-3);
 }
@@ -408,6 +411,16 @@ button {
   text-align: left;
   max-width: 22rem;
   margin: 1rem auto 1.5rem;
+}
+/* The one place the done screen says it's a demo, so it stands out from the summary. */
+.done__note {
+  display: inline-block;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
 }
 .done__mark {
   width: 3rem;

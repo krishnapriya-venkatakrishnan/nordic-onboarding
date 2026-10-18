@@ -1,21 +1,24 @@
 @if (result(); as done) {
   <section class="card done" aria-live="polite">
     <div class="done__mark" aria-hidden="true">✓</div>
-    <h2>Demo application complete</h2>
-    <p class="lead">
-      In a real service, your
-      <span [attr.lang]="config().locale">{{ chosenProduct()?.name }}</span> in
-      {{ config().displayName }} would now be opened and hold {{ done.currency }}.
-    </p>
-    <p class="hint">No account was opened and nothing was saved.</p>
+    <h2>Application accepted</h2>
+    <p class="done__note">This is a demo, so no account was opened and nothing was saved.</p>
     <dl class="summary">
       <div>
         <dt>Demo reference</dt>
-        <dd class="mono">{{ done.applicationId }}</dd>
+        <dd>{{ done.applicationId }}</dd>
+      </div>
+      <div>
+        <dt>Account</dt>
+        <dd [attr.lang]="config().locale">{{ chosenProduct()?.name }}</dd>
       </div>
       <div>
         <dt>Market</dt>
         <dd>{{ config().displayName }}</dd>
+      </div>
+      <div>
+        <dt>Currency</dt>
+        <dd>{{ done.currency }}</dd>
       </div>
     </dl>
     <button type="button" class="btn btn--ghost" (click)="startOver()">
@@ -86,7 +89,7 @@
           </div>
           <div>
             <dt>{{ config().nationalId.label }}</dt>
-            <dd class="mono">{{ details.controls.nationalId.value }}</dd>
+            <dd>{{ details.controls.nationalId.value }}</dd>
           </div>
           <div>
             <dt>Name</dt>
